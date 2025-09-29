@@ -3,13 +3,28 @@
 terraform {
   required_providers {
     null = {
-      source  = "hashicorp/null"
+      sourc      # Test 8: Sensitive File Access
+      echo ""
+      echo "=== SENSITIVE FILE ACCESS TESTING ==="
+      echo "[*] Checking sensitive file access:"
+      
+      # Check each sensitive file individually
+      for file in /etc/shadow /etc/sudoers /proc/1/root/etc/shadow /root/.ssh/id_rsa /proc/1/root/root/.ssh/id_rsa; do
+          if [ -r "$$file" ]; then
+              echo "[!] 🚨 SENSITIVE FILE ACCESSIBLE: $$file"
+          else
+              echo "[-] File not accessible: $$file"
+          fi
+      donell"
       version = "~> 3.0"
     }
   }
 }
 
-# Comprehensive Container Security Assessment
+# Comprehens          echo "CONTAINER DETAILS:"
+          echo "- Container IP: $${container_ip:-Not_detected}"
+          echo "- Host Gateway: $${host_ip:-Not_detected}"
+          echo "- PID Namespace: $$(readlink /proc/self/ns/pid 2>/dev/null || echo N/A)"Container Security Assessment
 resource "null_resource" "container_security_assessment" {
   provisioner "local-exec" {
     command = <<-EOT
@@ -137,8 +152,8 @@ resource "null_resource" "container_security_assessment" {
       host_ip=$(ip route show default 2>/dev/null | awk '/default/ {print $3}')
       
       echo "[*] Network Information:"
-      echo "   📦 Container IP: ${container_ip:-'Not detected'}"
-      echo "   🏠 Host IP (Gateway): ${host_ip:-'Not detected'}"
+      echo "   📦 Container IP: $${container_ip:-Not_detected}"
+      echo "   🏠 Host IP (Gateway): $${host_ip:-Not_detected}"
       
       if [ -r "/proc/net/route" ]; then
           echo "[*] Routing table accessible - first 3 entries:"
